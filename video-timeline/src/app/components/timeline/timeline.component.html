@@ -1,0 +1,120 @@
+<div class="flex flex-col h-full bg-[#1e1e1e] text-gray-200 select-none" (mouseup)="onMouseUp()" (mousemove)="onDocumentMouseMove($event)">
+  <!-- Toolbar -->
+  <div class="flex justify-between items-center px-4 py-3 bg-[#252525] border-b border-[#3a3a3a]">
+    <h2 class="text-lg font-semibold m-0">Timeline</h2>
+    <div class="flex gap-4 items-center">
+      <button (click)="addTrack()" class="px-3 py-1.5 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700">Add Track</button>
+      <div class="flex gap-2 items-center">
+        <button (click)="zoomOut()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base font-bold transition-colors hover:bg-[#4a4a4a]">-</button>
+        <span class="text-xs text-gray-400">Zoom</span>
+        <button (click)="zoomIn()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base font-bold transition-colors hover:bg-[#4a4a4a]">+</button>
+      </div>
+      <div class="font-mono text-sm px-3 py-1 bg-[#2a2a2a] rounded">{{ formatTime(state().playheadPosition) }}</div>
+    </div>
+  </div>
+
+  <!-- Timeline Ruler -->
+  <div class="relative h-10 bg-[#2a2a2a] border-b border-[#3a3a3a] overflow-x-auto overflow-y-hidden">
+    <div class="relative h-full min-w-full"
+         [style.width.px]="timelineWidth()"
+         (click)="onRulerClick($event)">
+      @for (marker of getTimeMarkers(); track marker.position) {
+        <div class="absolute top-0 h-full" [style.left.px]="marker.position">
+          <div class="w-px h-[60%] bg-[#4a4a4a]"></div>
+          <div class="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">{{ marker.label }}</div>
+        </div>
+      }
+    </div>
+
+    <!-- Playhead -->
+    <div class="absolute top-0 h-full pointer-events-none z-[1000]"
+         [style.left.px]="playheadPosition()"
+         (mousedown)="onPlayheadMouseDown($event)">
+      <div class="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto"></div>
+      <div class="absolute top-3 left-0 w-0.5 h-[calc(100vh-100px)] bg-red-500 pointer-events-none"></div>
+    </div>
+  </div>
+
+  <!-- Tracks -->
+  <div class="flex-1 overflow-y-auto overflow-x-auto">
+    @for (track of state().tracks; track track.id) {
+      <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
+        <!-- Track header -->
+        <div class="flex flex-col justify-between min-w-[150px] p-2 bg-[#252525] border-r border-[#3a3a3a]">
+          <span class="text-sm font-medium mb-1">{{ track.name }}</span>
+          <div class="flex gap-1 flex-wrap">
+            <button
+              (click)="addMediaItem(MediaType.VIDEO, track.id)"
+              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              title="Add video placeholder">
+              V
+            </button>
+            <button
+              (click)="addMediaItem(MediaType.AUDIO, track.id)"
+              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              title="Add audio placeholder">
+              A
+            </button>
+            <button
+              (click)="addMediaItem(MediaType.IMAGE, track.id)"
+              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              title="Add image placeholder">
+              I
+            </button>
+            <button
+              (click)="removeTrack(track.id)"
+              class="px-1.5 py-0.5 text-[11px] bg-red-600 text-white border-none rounded cursor-pointer transition-colors hover:bg-red-700"
+              title="Remove track">
+              ×
+            </button>
+          </div>
+        </div>
+
+        <!-- Track timeline -->
+        <div class="relative flex-1 bg-[#1a1a1a] min-h-[60px]"
+             [style.width.px]="timelineWidth()"
+             (mousemove)="onTrackMouseMove($event, track)">
+
+          @for (item of track.items; track item.id) {
+            <div class="media-item group absolute h-12 top-1.5 rounded border-2 border-transparent cursor-move flex items-center overflow-hidden transition-colors hover:border-white/30"
+                 [class]="getMediaTypeClass(item.type)"
+                 [style.left]="getItemStyle(item).left"
+                 [style.width]="getItemStyle(item).width"
+                 (mousedown)="onMediaItemMouseDown($event, item, track)">
+
+              <div class="resize-handle absolute top-0 left-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-r from-white/30 to-transparent hover:bg-white/50"></div>
+
+              <div class="flex items-center gap-1.5 px-2 flex-1 overflow-hidden">
+                <div class="text-lg flex-shrink-0">
+                  @switch (item.type) {
+                    @case (MediaType.VIDEO) {
+                      <span>📹</span>
+                    }
+                    @case (MediaType.AUDIO) {
+                      <span>🔊</span>
+                    }
+                    @case (MediaType.IMAGE) {
+                      <span>🖼️</span>
+                    }
+                  }
+                </div>
+                <div class="flex flex-col overflow-hidden flex-1">
+                  <div class="text-[11px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">{{ item.name }}</div>
+                  <div class="text-[9px] text-white/60 font-mono">{{ formatTime(item.duration) }}</div>
+                </div>
+              </div>
+
+              <div class="resize-handle absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-l from-white/30 to-transparent hover:bg-white/50"></div>
+
+              <button
+                class="media-item-delete absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 text-white border-none rounded-full cursor-pointer text-sm leading-none p-0 hidden items-center justify-center hover:bg-red-600"
+                (click)="removeMediaItem(item.id, track.id); $event.stopPropagation()">
+                ×
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
