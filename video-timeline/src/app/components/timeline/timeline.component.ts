@@ -61,6 +61,7 @@ export class TimelineComponent {
       type: MediaType.VIDEO,
       startTime: 0,
       duration: 5000,
+      maxDuration: 10000, // 10 seconds max
       trackId: '1',
       name: 'Video placeholder',
       isPlaceholder: true
@@ -72,6 +73,7 @@ export class TimelineComponent {
       type: MediaType.AUDIO,
       startTime: 2000,
       duration: 8000,
+      maxDuration: 15000, // 15 seconds max
       trackId: '2',
       name: 'Audio placeholder',
       isPlaceholder: true
@@ -331,7 +333,16 @@ export class TimelineComponent {
                     Math.min(timeAtCursor, bounds.maxTime)
                   );
                   const newDuration = i.duration + (i.startTime - newStartTime);
-                  return { ...i, startTime: newStartTime, duration: newDuration };
+
+                  // Limit duration by maxDuration if specified
+                  const limitedDuration = i.maxDuration
+                    ? Math.min(newDuration, i.maxDuration)
+                    : newDuration;
+
+                  // Adjust startTime if duration was limited
+                  const adjustedStartTime = i.startTime + i.duration - limitedDuration;
+
+                  return { ...i, startTime: adjustedStartTime, duration: limitedDuration };
                 } else {
                   // Constrain the new end time within bounds
                   const newEndTime = Math.max(
@@ -339,7 +350,13 @@ export class TimelineComponent {
                     Math.min(timeAtCursor, bounds.maxTime)
                   );
                   const newDuration = newEndTime - i.startTime;
-                  return { ...i, duration: newDuration };
+
+                  // Limit duration by maxDuration if specified
+                  const limitedDuration = i.maxDuration
+                    ? Math.min(newDuration, i.maxDuration)
+                    : newDuration;
+
+                  return { ...i, duration: limitedDuration };
                 }
               }
               return i;
@@ -440,6 +457,13 @@ export class TimelineComponent {
       name: `${type} placeholder`,
       isPlaceholder: true
     };
+
+    // Set maxDuration for audio and video placeholders
+    if (type === MediaType.VIDEO) {
+      newItem.maxDuration = 10000; // 10 seconds default for video
+    } else if (type === MediaType.AUDIO) {
+      newItem.maxDuration = 15000; // 15 seconds default for audio
+    }
 
     this.state.update(s => ({
       ...s,
