@@ -118,4 +118,163 @@ describe('TimelineComponent', () => {
     expect(component.getMediaTypeClass(MediaType.AUDIO)).toBe('media-audio');
     expect(component.getMediaTypeClass(MediaType.IMAGE)).toBe('media-image');
   });
+
+  describe('Collision Detection', () => {
+    it('should not allow overlapping items when adding media', () => {
+      const track = component.state().tracks[0];
+
+      // Add first item
+      component.addMediaItem(MediaType.VIDEO, track.id);
+      const firstItem = component.state().tracks.find(t => t.id === track.id)?.items[0];
+
+      // Add second item - should be placed after first item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+
+      expect(items.length).toBe(2);
+      if (firstItem && items[1]) {
+        // Second item should start after first item ends
+        expect(items[1].startTime).toBeGreaterThanOrEqual(firstItem.startTime + firstItem.duration);
+      }
+    });
+
+    it('should place new items after the last item in track', () => {
+      const track = component.state().tracks[0];
+
+      // Clear any existing items
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? { ...t, items: [] } : t)
+      }));
+
+      // Add three items
+      component.addMediaItem(MediaType.VIDEO, track.id);
+      component.addMediaItem(MediaType.AUDIO, track.id);
+      component.addMediaItem(MediaType.IMAGE, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(3);
+
+      // Each item should start after the previous one ends
+      for (let i = 1; i < items.length; i++) {
+        const prevItem = items[i - 1];
+        const currItem = items[i];
+        expect(currItem.startTime).toBe(prevItem.startTime + prevItem.duration);
+      }
+    });
+
+    it('should prevent items from overlapping during drag', () => {
+      const track = component.state().tracks[0];
+
+      // Clear existing items and add two items with a gap
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item1',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 5000,
+              trackId: track.id,
+              name: 'Item 1',
+              isPlaceholder: true
+            },
+            {
+              id: 'item2',
+              type: MediaType.AUDIO,
+              startTime: 10000,
+              duration: 5000,
+              trackId: track.id,
+              name: 'Item 2',
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      // Simulate dragging item2 into the space of item1
+      const mockEvent = {
+        currentTarget: document.createElement('div'),
+        clientX: 250, // This would be around 5000ms at default zoom
+        target: document.createElement('div')
+      } as unknown as MouseEvent;
+
+      Object.defineProperty(mockEvent.currentTarget, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, right: 1000, bottom: 100 })
+      });
+
+      const item2 = component.state().tracks.find(t => t.id === track.id)?.items[1];
+      if (item2) {
+        // Start dragging item2
+        component['draggedItem'] = item2;
+        component['draggedItemOriginalTrackId'] = track.id;
+
+        // Move to a position that would overlap with item1
+        component.onTrackMouseMove(mockEvent, track);
+
+        const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+        const draggedItem = items.find(i => i.id === 'item2');
+        const otherItem = items.find(i => i.id === 'item1');
+
+        if (draggedItem && otherItem) {
+          // Items should not overlap
+          const item1End = otherItem.startTime + otherItem.duration;
+          const item2End = draggedItem.startTime + draggedItem.duration;
+
+          const overlaps = !(item1End <= draggedItem.startTime || item2End <= otherItem.startTime);
+          expect(overlaps).toBe(false);
+        }
+      }
+    });
+
+    it('should maintain item visibility during drag within same track', () => {
+      const track = component.state().tracks[0];
+
+      // Add an item
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'test-item',
+            type: MediaType.VIDEO,
+            startTime: 5000,
+            duration: 3000,
+            trackId: track.id,
+            name: 'Test Item',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      const item = component.state().tracks.find(t => t.id === track.id)?.items[0];
+      expect(item).toBeDefined();
+
+      // Simulate drag
+      const mockEvent = {
+        currentTarget: document.createElement('div'),
+        clientX: 300,
+        target: document.createElement('div')
+      } as unknown as MouseEvent;
+
+      Object.defineProperty(mockEvent.currentTarget, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, right: 1000, bottom: 100 })
+      });
+
+      if (item) {
+        component['draggedItem'] = item;
+        component['draggedItemOriginalTrackId'] = track.id;
+
+        // Move within same track
+        component.onTrackMouseMove(mockEvent, track);
+
+        // Item should still exist
+        const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+        expect(items.length).toBe(1);
+        expect(items[0].id).toBe('test-item');
+      }
+    });
+  });
 });
