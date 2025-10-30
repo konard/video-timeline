@@ -1,0 +1,120 @@
+<div class="timeline-container" (mouseup)="onMouseUp()" (mousemove)="onDocumentMouseMove($event)">
+  <!-- Toolbar -->
+  <div class="timeline-toolbar">
+    <h2>Timeline</h2>
+    <div class="toolbar-controls">
+      <button (click)="addTrack()" class="btn btn-primary">Add Track</button>
+      <div class="zoom-controls">
+        <button (click)="zoomOut()" class="btn btn-zoom">-</button>
+        <span class="zoom-label">Zoom</span>
+        <button (click)="zoomIn()" class="btn btn-zoom">+</button>
+      </div>
+      <div class="playhead-time">{{ formatTime(state().playheadPosition) }}</div>
+    </div>
+  </div>
+
+  <!-- Timeline Ruler -->
+  <div class="timeline-ruler-container">
+    <div class="timeline-ruler"
+         [style.width.px]="timelineWidth()"
+         (click)="onRulerClick($event)">
+      @for (marker of getTimeMarkers(); track marker.position) {
+        <div class="time-marker" [style.left.px]="marker.position">
+          <div class="time-marker-line"></div>
+          <div class="time-marker-label">{{ marker.label }}</div>
+        </div>
+      }
+    </div>
+
+    <!-- Playhead -->
+    <div class="playhead"
+         [style.left.px]="playheadPosition()"
+         (mousedown)="onPlayheadMouseDown($event)">
+      <div class="playhead-handle"></div>
+      <div class="playhead-line"></div>
+    </div>
+  </div>
+
+  <!-- Tracks -->
+  <div class="timeline-tracks">
+    @for (track of state().tracks; track track.id) {
+      <div class="track-container">
+        <!-- Track header -->
+        <div class="track-header">
+          <span class="track-name">{{ track.name }}</span>
+          <div class="track-controls">
+            <button
+              (click)="addMediaItem(MediaType.VIDEO, track.id)"
+              class="btn btn-small"
+              title="Add video placeholder">
+              V
+            </button>
+            <button
+              (click)="addMediaItem(MediaType.AUDIO, track.id)"
+              class="btn btn-small"
+              title="Add audio placeholder">
+              A
+            </button>
+            <button
+              (click)="addMediaItem(MediaType.IMAGE, track.id)"
+              class="btn btn-small"
+              title="Add image placeholder">
+              I
+            </button>
+            <button
+              (click)="removeTrack(track.id)"
+              class="btn btn-small btn-danger"
+              title="Remove track">
+              ×
+            </button>
+          </div>
+        </div>
+
+        <!-- Track timeline -->
+        <div class="track-timeline"
+             [style.width.px]="timelineWidth()"
+             (mousemove)="onTrackMouseMove($event, track)">
+
+          @for (item of track.items; track item.id) {
+            <div class="media-item"
+                 [class]="getMediaTypeClass(item.type)"
+                 [style.left]="getItemStyle(item).left"
+                 [style.width]="getItemStyle(item).width"
+                 (mousedown)="onMediaItemMouseDown($event, item, track)">
+
+              <div class="resize-handle resize-handle-left"></div>
+
+              <div class="media-item-content">
+                <div class="media-item-icon">
+                  @switch (item.type) {
+                    @case (MediaType.VIDEO) {
+                      <span>📹</span>
+                    }
+                    @case (MediaType.AUDIO) {
+                      <span>🔊</span>
+                    }
+                    @case (MediaType.IMAGE) {
+                      <span>🖼️</span>
+                    }
+                  }
+                </div>
+                <div class="media-item-info">
+                  <div class="media-item-name">{{ item.name }}</div>
+                  <div class="media-item-duration">{{ formatTime(item.duration) }}</div>
+                </div>
+              </div>
+
+              <div class="resize-handle resize-handle-right"></div>
+
+              <button
+                class="media-item-delete"
+                (click)="removeMediaItem(item.id, track.id); $event.stopPropagation()">
+                ×
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
