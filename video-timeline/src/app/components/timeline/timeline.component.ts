@@ -141,6 +141,60 @@ export class TimelineComponent {
     this.isDraggingPlayhead = true;
   }
 
+  // Collision detection helpers
+  private itemsOverlap(item1: MediaItem, item2: MediaItem): boolean {
+    const item1End = item1.startTime + item1.duration;
+    const item2End = item2.startTime + item2.duration;
+    return !(item1End <= item2.startTime || item2End <= item1.startTime);
+  }
+
+  private getValidDragPosition(item: MediaItem, requestedStartTime: number, trackItems: MediaItem[]): number {
+    const otherItems = trackItems.filter(i => i.id !== item.id);
+    const testItem = { ...item, startTime: requestedStartTime };
+
+    // Check for overlaps with each item
+    for (const other of otherItems) {
+      if (this.itemsOverlap(testItem, other)) {
+        // Snap to nearest non-overlapping position
+        if (requestedStartTime < other.startTime) {
+          // Moving left, snap to left of other item
+          return Math.max(0, other.startTime - item.duration);
+        } else {
+          // Moving right, snap to right of other item
+          return other.startTime + other.duration;
+        }
+      }
+    }
+
+    return Math.max(0, requestedStartTime);
+  }
+
+  private getResizeBounds(item: MediaItem, trackItems: MediaItem[], edge: 'left' | 'right'): { minTime: number; maxTime: number } {
+    const otherItems = trackItems.filter(i => i.id !== item.id)
+      .sort((a, b) => a.startTime - b.startTime);
+
+    if (edge === 'left') {
+      // Find item to the left
+      const leftItem = otherItems
+        .filter(i => i.startTime + i.duration <= item.startTime)
+        .pop();
+
+      const minTime = leftItem ? leftItem.startTime + leftItem.duration : 0;
+      const maxTime = item.startTime + item.duration - 100; // Keep minimum duration
+
+      return { minTime, maxTime };
+    } else {
+      // Find item to the right
+      const rightItem = otherItems
+        .find(i => i.startTime >= item.startTime + item.duration);
+
+      const minTime = item.startTime + 100; // Minimum duration
+      const maxTime = rightItem ? rightItem.startTime : Infinity;
+
+      return { minTime, maxTime };
+    }
+  }
+
   // Media item drag and drop
   onMediaItemMouseDown(event: MouseEvent, item: MediaItem, track: Track): void {
     const target = event.target as HTMLElement;
@@ -171,41 +225,56 @@ export class TimelineComponent {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const x = event.clientX - rect.left;
-    const newStartTime = Math.max(0, x / this.pixelsPerMillisecond());
+    const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond());
 
     this.state.update(s => {
       const updatedTracks = s.tracks.map(t => {
-        if (t.id === this.draggedItemOriginalTrackId) {
-          // Remove from original track
+        if (t.id === track.id) {
+          // Get all items except the dragged one for collision detection
+          const otherItems = t.items.filter(i => i.id !== this.draggedItem!.id);
+
+          // Calculate valid position considering collisions
+          const validStartTime = this.getValidDragPosition(
+            this.draggedItem!,
+            requestedStartTime,
+            otherItems
+          );
+
+          // Check if item already exists in this track
+          const itemExists = t.items.some(i => i.id === this.draggedItem!.id);
+
+          if (itemExists) {
+            // Update position in current track
+            return {
+              ...t,
+              items: t.items.map(i =>
+                i.id === this.draggedItem!.id
+                  ? { ...i, startTime: validStartTime, trackId: track.id }
+                  : i
+              )
+            };
+          } else {
+            // Add to new track
+            return {
+              ...t,
+              items: [
+                ...otherItems,
+                { ...this.draggedItem!, startTime: validStartTime, trackId: track.id }
+              ]
+            };
+          }
+        } else if (t.id === this.draggedItemOriginalTrackId && t.id !== track.id) {
+          // Remove from original track only if moving to different track
           return {
             ...t,
             items: t.items.filter(i => i.id !== this.draggedItem!.id)
           };
         }
-        if (t.id === track.id) {
-          // Add to new track or update position
-          const itemExists = t.items.some(i => i.id === this.draggedItem!.id);
-          if (itemExists) {
-            return {
-              ...t,
-              items: t.items.map(i =>
-                i.id === this.draggedItem!.id
-                  ? { ...i, startTime: newStartTime, trackId: track.id }
-                  : i
-              )
-            };
-          } else {
-            return {
-              ...t,
-              items: [
-                ...t.items,
-                { ...this.draggedItem!, startTime: newStartTime, trackId: track.id }
-              ]
-            };
-          }
-        }
         return t;
       });
+
+      // Update the original track ID to current track for smooth dragging within same track
+      this.draggedItemOriginalTrackId = track.id;
 
       return { ...s, tracks: updatedTracks };
     });
@@ -222,16 +291,28 @@ export class TimelineComponent {
     this.state.update(s => {
       const updatedTracks = s.tracks.map(t => {
         if (t.id === track.id) {
+          // Get resize bounds considering adjacent items
+          const bounds = this.getResizeBounds(this.resizingItem!.item, t.items, this.resizingItem!.edge);
+
           return {
             ...t,
             items: t.items.map(i => {
               if (i.id === this.resizingItem!.item.id) {
                 if (this.resizingItem!.edge === 'left') {
-                  const newStartTime = Math.max(0, Math.min(timeAtCursor, i.startTime + i.duration - 100));
+                  // Constrain the new start time within bounds
+                  const newStartTime = Math.max(
+                    bounds.minTime,
+                    Math.min(timeAtCursor, bounds.maxTime)
+                  );
                   const newDuration = i.duration + (i.startTime - newStartTime);
                   return { ...i, startTime: newStartTime, duration: newDuration };
                 } else {
-                  const newDuration = Math.max(100, timeAtCursor - i.startTime);
+                  // Constrain the new end time within bounds
+                  const newEndTime = Math.max(
+                    bounds.minTime,
+                    Math.min(timeAtCursor, bounds.maxTime)
+                  );
+                  const newDuration = newEndTime - i.startTime;
                   return { ...i, duration: newDuration };
                 }
               }
@@ -306,10 +387,23 @@ export class TimelineComponent {
   // Add placeholder media item
   addMediaItem(type: MediaType, trackId: string): void {
     const currentState = this.state();
+    const track = currentState.tracks.find(t => t.id === trackId);
+
+    if (!track) return;
+
+    // Find the position for the new item (after the last item or at start)
+    let startTime = 0;
+    if (track.items.length > 0) {
+      // Sort items by start time and place after the last one
+      const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+      const lastItem = sortedItems[sortedItems.length - 1];
+      startTime = lastItem.startTime + lastItem.duration;
+    }
+
     const newItem: MediaItem = {
       id: `item-${Date.now()}`,
       type,
-      startTime: currentState.playheadPosition,
+      startTime,
       duration: type === MediaType.IMAGE ? 5000 : 3000,
       trackId,
       name: `${type} placeholder`,
