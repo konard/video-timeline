@@ -46,6 +46,9 @@ export class TimelineComponent {
   private isDraggingPlayhead = false;
   private resizingItem: { item: MediaItem; edge: 'left' | 'right' } | null = null;
 
+  // Video preview state
+  readonly isPlaying = signal<boolean>(false);
+
   constructor() {
     // Add some demo items
     this.addDemoItems();
@@ -487,4 +490,23 @@ export class TimelineComponent {
   }
 
   readonly MediaType = MediaType;
+
+  // Video preview controls
+  togglePlayback(): void {
+    this.isPlaying.update(playing => !playing);
+  }
+
+  skipBackward(): void {
+    this.state.update(s => ({
+      ...s,
+      playheadPosition: Math.max(0, s.playheadPosition - 5000)
+    }));
+  }
+
+  skipForward(): void {
+    this.state.update(s => ({
+      ...s,
+      playheadPosition: Math.min(s.totalDuration, s.playheadPosition + 5000)
+    }));
+  }
 }
