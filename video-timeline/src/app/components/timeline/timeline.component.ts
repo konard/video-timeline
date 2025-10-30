@@ -336,10 +336,14 @@ export class TimelineComponent {
 
   onDocumentMouseMove(event: MouseEvent): void {
     if (this.isDraggingPlayhead) {
-      const timeline = document.querySelector('.timeline-ruler') as HTMLElement;
-      if (timeline) {
-        const rect = timeline.getBoundingClientRect();
-        const x = event.clientX - rect.left;
+      // Find the ruler element within the timeline content wrapper
+      const ruler = event.currentTarget as HTMLElement;
+      const contentWrapper = ruler.querySelector('.flex-1.flex.flex-col') as HTMLElement;
+
+      if (contentWrapper) {
+        const rect = contentWrapper.getBoundingClientRect();
+        const scrollLeft = contentWrapper.scrollLeft;
+        const x = event.clientX - rect.left + scrollLeft;
         const newPosition = x / this.pixelsPerMillisecond();
 
         this.state.update(s => ({
