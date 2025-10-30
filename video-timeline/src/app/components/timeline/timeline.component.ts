@@ -127,7 +127,10 @@ export class TimelineComponent {
   onRulerClick(event: MouseEvent): void {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const x = event.clientX - rect.left;
+    // Get the scrollable container to account for scroll offset
+    const scrollContainer = target.closest('.overflow-x-auto') as HTMLElement;
+    const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+    const x = event.clientX - rect.left + scrollLeft;
     const newPosition = x / this.pixelsPerMillisecond();
 
     this.state.update(s => ({
@@ -214,7 +217,10 @@ export class TimelineComponent {
     const trackElement = target.closest('.track') as HTMLElement;
     if (trackElement) {
       const rect = trackElement.getBoundingClientRect();
-      const clickX = event.clientX - rect.left;
+      // Get the scrollable container to account for scroll offset
+      const scrollContainer = trackElement.closest('.overflow-x-auto') as HTMLElement;
+      const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+      const clickX = event.clientX - rect.left + scrollLeft;
       const clickTime = clickX / this.pixelsPerMillisecond();
       this.dragOffsetTime = clickTime - item.startTime;
     } else {
@@ -236,7 +242,10 @@ export class TimelineComponent {
 
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const x = event.clientX - rect.left;
+    // Get the scrollable container to account for scroll offset
+    const scrollContainer = target.closest('.overflow-x-auto') as HTMLElement;
+    const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+    const x = event.clientX - rect.left + scrollLeft;
     // Calculate the requested start time by subtracting the drag offset
     // This keeps the cursor at the same position within the item where dragging started
     const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
@@ -299,7 +308,10 @@ export class TimelineComponent {
 
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const x = event.clientX - rect.left;
+    // Get the scrollable container to account for scroll offset
+    const scrollContainer = target.closest('.overflow-x-auto') as HTMLElement;
+    const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+    const x = event.clientX - rect.left + scrollLeft;
     const timeAtCursor = x / this.pixelsPerMillisecond();
 
     this.state.update(s => {
