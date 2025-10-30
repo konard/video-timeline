@@ -76,7 +76,7 @@
                  [style.width]="getItemStyle(item).width"
                  (mousedown)="onMediaItemMouseDown($event, item, track)">
 
-              <div class="resize-handle absolute top-0 left-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-r from-white/30 to-transparent hover:bg-white/50"></div>
+              <div class="resize-handle resize-handle-left absolute top-0 left-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-r from-white/30 to-transparent hover:bg-white/50"></div>
 
               <div class="flex items-center gap-1.5 px-2 flex-1 overflow-hidden">
                 <div class="text-lg flex-shrink-0">
@@ -98,7 +98,7 @@
                 </div>
               </div>
 
-              <div class="resize-handle absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-l from-white/30 to-transparent hover:bg-white/50"></div>
+              <div class="resize-handle resize-handle-right absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-l from-white/30 to-transparent hover:bg-white/50"></div>
 
               <button
                 class="media-item-delete absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 text-white border-none rounded-full cursor-pointer text-sm leading-none p-0 hidden items-center justify-center hover:bg-red-600"
