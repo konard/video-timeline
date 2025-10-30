@@ -13,30 +13,24 @@
     </div>
   </div>
 
-  <!-- Timeline Ruler -->
-  <div class="relative h-10 bg-[#2a2a2a] border-b border-[#3a3a3a] overflow-x-auto overflow-y-hidden">
-    <div class="relative h-full min-w-full"
-         [style.width.px]="timelineWidth()"
-         (click)="onRulerClick($event)">
-      @for (marker of getTimeMarkers(); track marker.position) {
-        <div class="absolute top-0 h-full" [style.left.px]="marker.position">
-          <div class="w-px h-[60%] bg-[#4a4a4a]"></div>
-          <div class="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">{{ marker.label }}</div>
-        </div>
-      }
+  <!-- Timeline content wrapper with unified horizontal scrolling -->
+  <div class="flex-1 flex flex-col overflow-y-auto overflow-x-auto relative">
+    <!-- Timeline Ruler -->
+    <div class="relative h-10 bg-[#2a2a2a] border-b border-[#3a3a3a] flex-shrink-0">
+      <div class="relative h-full min-w-full"
+           [style.width.px]="timelineWidth()"
+           (click)="onRulerClick($event)">
+        @for (marker of getTimeMarkers(); track marker.position) {
+          <div class="absolute top-0 h-full" [style.left.px]="marker.position">
+            <div class="w-px h-[60%] bg-[#4a4a4a]"></div>
+            <div class="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">{{ marker.label }}</div>
+          </div>
+        }
+      </div>
     </div>
 
-    <!-- Playhead -->
-    <div class="absolute top-0 h-full pointer-events-none z-[1000]"
-         [style.left.px]="playheadPosition()"
-         (mousedown)="onPlayheadMouseDown($event)">
-      <div class="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto"></div>
-      <div class="absolute top-3 left-0 w-0.5 h-[calc(100vh-100px)] bg-red-500 pointer-events-none"></div>
-    </div>
-  </div>
-
-  <!-- Tracks -->
-  <div class="flex-1 overflow-y-auto overflow-x-auto">
+    <!-- Tracks -->
+    <div class="flex-1">
     @for (track of state().tracks; track track.id) {
       <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
         <!-- Track header -->
@@ -116,5 +110,14 @@
         </div>
       </div>
     }
+    </div>
+
+    <!-- Playhead - positioned absolutely over the entire content area -->
+    <div class="absolute top-0 bottom-0 pointer-events-none z-[1000]"
+         [style.left.px]="playheadPosition()"
+         (mousedown)="onPlayheadMouseDown($event)">
+      <div class="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto"></div>
+      <div class="absolute top-3 left-0 w-0.5 h-full bg-red-500 pointer-events-none"></div>
+    </div>
   </div>
 </div>
