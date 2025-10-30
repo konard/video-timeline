@@ -3,11 +3,18 @@
   <div class="flex justify-between items-center px-4 py-3 bg-[#252525] border-b border-[#3a3a3a]">
     <h2 class="text-lg font-semibold m-0">Timeline</h2>
     <div class="flex gap-4 items-center">
-      <button (click)="addTrack()" class="px-3 py-1.5 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700">Add Track</button>
+      <button (click)="addTrack()" class="px-3 py-1.5 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700 flex items-center gap-1.5">
+        <i class="bi bi-plus-circle"></i>
+        Add Track
+      </button>
       <div class="flex gap-2 items-center">
-        <button (click)="zoomOut()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base font-bold transition-colors hover:bg-[#4a4a4a]">-</button>
+        <button (click)="zoomOut()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a]">
+          <i class="bi bi-zoom-out"></i>
+        </button>
         <span class="text-xs text-gray-400">Zoom</span>
-        <button (click)="zoomIn()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base font-bold transition-colors hover:bg-[#4a4a4a]">+</button>
+        <button (click)="zoomIn()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a]">
+          <i class="bi bi-zoom-in"></i>
+        </button>
       </div>
       <div class="font-mono text-sm px-3 py-1 bg-[#2a2a2a] rounded">{{ formatTime(state().playheadPosition) }}</div>
     </div>
@@ -39,27 +46,27 @@
           <div class="flex gap-1 flex-wrap">
             <button
               (click)="addMediaItem(MediaType.VIDEO, track.id)"
-              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
               title="Add video placeholder">
-              V
+              <i class="bi bi-camera-video"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.AUDIO, track.id)"
-              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
               title="Add audio placeholder">
-              A
+              <i class="bi bi-volume-up"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.IMAGE, track.id)"
-              class="px-1.5 py-0.5 text-[11px] bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
               title="Add image placeholder">
-              I
+              <i class="bi bi-image"></i>
             </button>
             <button
               (click)="removeTrack(track.id)"
-              class="px-1.5 py-0.5 text-[11px] bg-red-600 text-white border-none rounded cursor-pointer transition-colors hover:bg-red-700"
+              class="px-1.5 py-0.5 text-xs bg-red-600 text-white border-none rounded cursor-pointer transition-colors hover:bg-red-700"
               title="Remove track">
-              ×
+              <i class="bi bi-trash"></i>
             </button>
           </div>
         </div>
@@ -82,13 +89,13 @@
                 <div class="text-lg flex-shrink-0">
                   @switch (item.type) {
                     @case (MediaType.VIDEO) {
-                      <span>📹</span>
+                      <i class="bi bi-camera-video-fill"></i>
                     }
                     @case (MediaType.AUDIO) {
-                      <span>🔊</span>
+                      <i class="bi bi-volume-up-fill"></i>
                     }
                     @case (MediaType.IMAGE) {
-                      <span>🖼️</span>
+                      <i class="bi bi-image-fill"></i>
                     }
                   }
                 </div>
@@ -101,9 +108,9 @@
               <div class="resize-handle resize-handle-right absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 bg-gradient-to-l from-white/30 to-transparent hover:bg-white/50"></div>
 
               <button
-                class="media-item-delete absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 text-white border-none rounded-full cursor-pointer text-sm leading-none p-0 hidden items-center justify-center hover:bg-red-600"
+                class="media-item-delete absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 text-white border-none rounded-full cursor-pointer text-xs leading-none p-0 hidden items-center justify-center hover:bg-red-600"
                 (click)="removeMediaItem(item.id, track.id); $event.stopPropagation()">
-                ×
+                <i class="bi bi-x"></i>
               </button>
             </div>
           }
