@@ -9,6 +9,7 @@ export interface MediaItem {
   type: MediaType;
   startTime: number; // milliseconds
   duration: number; // milliseconds
+  maxDuration?: number; // milliseconds - maximum duration for audio/video placeholders
   trackId: string;
   name?: string;
   isPlaceholder?: boolean;
