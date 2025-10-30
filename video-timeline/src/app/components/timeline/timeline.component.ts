@@ -42,6 +42,7 @@ export class TimelineComponent {
   // Dragging state
   private draggedItem: MediaItem | null = null;
   private draggedItemOriginalTrackId: string | null = null;
+  private dragOffsetTime: number = 0; // Offset in milliseconds from item start to cursor position
   private isDraggingPlayhead = false;
   private resizingItem: { item: MediaItem; edge: 'left' | 'right' } | null = null;
 
@@ -209,6 +210,17 @@ export class TimelineComponent {
       return;
     }
 
+    // Calculate the offset from the item's start position to where the user clicked
+    const trackElement = target.closest('.track') as HTMLElement;
+    if (trackElement) {
+      const rect = trackElement.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const clickTime = clickX / this.pixelsPerMillisecond();
+      this.dragOffsetTime = clickTime - item.startTime;
+    } else {
+      this.dragOffsetTime = 0;
+    }
+
     this.draggedItem = item;
     this.draggedItemOriginalTrackId = track.id;
     event.preventDefault();
@@ -225,7 +237,9 @@ export class TimelineComponent {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const x = event.clientX - rect.left;
-    const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond());
+    // Calculate the requested start time by subtracting the drag offset
+    // This keeps the cursor at the same position within the item where dragging started
+    const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
 
     this.state.update(s => {
       const updatedTracks = s.tracks.map(t => {
@@ -330,6 +344,7 @@ export class TimelineComponent {
   onMouseUp(): void {
     this.draggedItem = null;
     this.draggedItemOriginalTrackId = null;
+    this.dragOffsetTime = 0;
     this.isDraggingPlayhead = false;
     this.resizingItem = null;
   }
