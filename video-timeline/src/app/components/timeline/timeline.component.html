@@ -20,6 +20,38 @@
     </div>
   </div>
 
+  <!-- Video Preview Area -->
+  <div class="flex justify-center items-center py-6 bg-[#252525] border-b border-[#3a3a3a]">
+    <div class="flex flex-col items-center gap-3">
+      <!-- Video Preview Placeholder -->
+      <div class="w-[640px] h-[360px] bg-[#1a1a1a] rounded-lg border border-[#3a3a3a] flex items-center justify-center">
+        <div class="flex flex-col items-center gap-2 text-gray-400">
+          <i class="bi bi-film text-6xl"></i>
+          <span class="text-sm">Предпросмотр видео</span>
+        </div>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex gap-2 items-center">
+        <button (click)="skipBackward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Назад на 5 секунд">
+          <i class="bi bi-skip-backward-fill"></i>
+          <span class="text-xs">5s</span>
+        </button>
+        <button (click)="togglePlayback()" class="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-xl transition-colors hover:bg-blue-700" [title]="isPlaying() ? 'Пауза' : 'Воспроизведение'">
+          @if (isPlaying()) {
+            <i class="bi bi-pause-fill"></i>
+          } @else {
+            <i class="bi bi-play-fill"></i>
+          }
+        </button>
+        <button (click)="skipForward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Вперёд на 5 секунд">
+          <span class="text-xs">5s</span>
+          <i class="bi bi-skip-forward-fill"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Timeline content wrapper with unified horizontal scrolling -->
   <div class="flex-1 flex flex-col overflow-y-auto overflow-x-auto relative">
     <!-- Timeline Ruler -->
