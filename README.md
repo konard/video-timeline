@@ -1,4 +1,4 @@
-# VideoTimeline
+# VideoEditor Template
 
 A professional video timeline editor built with Angular 20.3, featuring drag-and-drop functionality, media management, and real-time preview capabilities.
 
