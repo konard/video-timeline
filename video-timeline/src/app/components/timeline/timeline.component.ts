@@ -804,32 +804,85 @@ export class TimelineComponent {
     const maxAllowedDuration = totalDuration - startTime;
     const finalDuration = Math.min(newItemDuration, maxAllowedDuration);
 
-    const newItem: MediaItem = {
-      id: `item-${Date.now()}`,
+    // Fix for issue #64: Verify that the new item doesn't overlap with any existing items
+    const testItem: MediaItem = {
+      id: 'temp',
       type,
       startTime,
       duration: finalDuration,
       trackId,
-      name: `${type} placeholder`,
+      name: '',
       isPlaceholder: true
     };
 
-    // Set maxDuration for audio and video placeholders
-    // Fix for issue #48: Respect totalDuration limit
-    if (type === MediaType.VIDEO) {
-      newItem.maxDuration = Math.min(10000, maxAllowedDuration); // 10 seconds default for video
-    } else if (type === MediaType.AUDIO) {
-      newItem.maxDuration = Math.min(15000, maxAllowedDuration); // 15 seconds default for audio
-    }
+    // Check if the calculated position would cause overlap
+    const hasOverlap = track.items.some(item => this.itemsOverlap(testItem, item));
 
-    this.state.update(s => ({
-      ...s,
-      tracks: s.tracks.map(t =>
-        t.id === trackId
-          ? { ...t, items: [...t.items, newItem] }
-          : t
-      )
-    }));
+    if (hasOverlap) {
+      // Find a non-overlapping position: place after the last item
+      const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+      const lastItem = sortedItems[sortedItems.length - 1];
+      startTime = lastItem.startTime + lastItem.duration;
+
+      // Recalculate duration limit after adjusting position
+      const newMaxAllowedDuration = totalDuration - startTime;
+      const adjustedDuration = Math.min(newItemDuration, newMaxAllowedDuration);
+
+      // Create the final non-overlapping item
+      const newItem: MediaItem = {
+        id: `item-${Date.now()}`,
+        type,
+        startTime,
+        duration: adjustedDuration,
+        trackId,
+        name: `${type} placeholder`,
+        isPlaceholder: true
+      };
+
+      // Set maxDuration for audio and video placeholders
+      if (type === MediaType.VIDEO) {
+        newItem.maxDuration = Math.min(10000, newMaxAllowedDuration); // 10 seconds default for video
+      } else if (type === MediaType.AUDIO) {
+        newItem.maxDuration = Math.min(15000, newMaxAllowedDuration); // 15 seconds default for audio
+      }
+
+      this.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t =>
+          t.id === trackId
+            ? { ...t, items: [...t.items, newItem] }
+            : t
+        )
+      }));
+    } else {
+      // No overlap, use the calculated position
+      const newItem: MediaItem = {
+        id: `item-${Date.now()}`,
+        type,
+        startTime,
+        duration: finalDuration,
+        trackId,
+        name: `${type} placeholder`,
+        isPlaceholder: true
+      };
+
+      // Set maxDuration for audio and video placeholders
+      // Fix for issue #48: Respect totalDuration limit
+      if (type === MediaType.VIDEO) {
+        newItem.maxDuration = Math.min(10000, maxAllowedDuration); // 10 seconds default for video
+      } else if (type === MediaType.AUDIO) {
+        newItem.maxDuration = Math.min(15000, maxAllowedDuration); // 15 seconds default for audio
+      }
+
+      this.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t =>
+          t.id === trackId
+            ? { ...t, items: [...t.items, newItem] }
+            : t
+        )
+      }));
+    }
   }
 
   removeMediaItem(itemId: string, trackId: string): void {
