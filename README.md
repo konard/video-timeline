@@ -2,6 +2,8 @@
 
 A professional video timeline editor built with Angular 20.3, featuring drag-and-drop functionality, media management, and real-time preview capabilities.
 
+**[Live Demo](https://andchir.github.io/video-timeline/)**
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -225,6 +227,46 @@ npx prettier --write "src/**/*.{ts,html,css}"
 ## Browser Support
 
 The application is optimized for modern browsers supporting ES2022 features.
+
+## Deployment
+
+### GitHub Pages
+
+This project is automatically deployed to GitHub Pages using GitHub Actions. The deployment happens automatically when changes are pushed to the `main` branch.
+
+#### How it Works
+
+1. **GitHub Actions Workflow**: The `.github/workflows/deploy.yml` file defines a CI/CD pipeline that:
+   - Triggers on every push to the `main` branch
+   - Can also be triggered manually via workflow_dispatch
+   - Installs Node.js and project dependencies
+   - Builds the Angular application with the correct base-href for GitHub Pages
+   - Uploads the build artifacts to GitHub Pages
+   - Deploys the application
+
+2. **Build Configuration**: The application is built with `--base-href=/video-timeline/` to ensure all resources are loaded correctly from the GitHub Pages subdirectory.
+
+3. **Output**: The production build is created in `video-timeline/dist/video-timeline/browser/` and includes:
+   - Optimized and minified JavaScript bundles
+   - CSS files with Tailwind utilities
+   - Static assets from the `public/` directory
+   - Index.html with proper base-href configuration
+
+#### Manual Deployment
+
+To deploy manually, you can trigger the workflow from the Actions tab in the GitHub repository, or push changes to the `main` branch.
+
+#### Local Testing
+
+To test the production build locally with the correct base-href:
+
+```bash
+cd video-timeline
+npm run build -- --base-href=/video-timeline/
+npx http-server dist/video-timeline/browser -p 8080
+```
+
+Then open `http://localhost:8080/video-timeline/` in your browser.
 
 ## Contributing
 
