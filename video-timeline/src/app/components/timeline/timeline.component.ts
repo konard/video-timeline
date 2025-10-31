@@ -822,4 +822,10 @@ export class TimelineComponent {
       playheadPosition: Math.min(s.totalDuration, s.playheadPosition + 5000)
     }));
   }
+
+  // Extract track number from track name
+  getTrackNumber(trackName: string): string {
+    const match = trackName.match(/\d+/);
+    return match ? match[0] : trackName;
+  }
 }
