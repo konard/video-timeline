@@ -38,7 +38,20 @@ export class TimelineComponent {
   });
 
   readonly timelineWidth = computed(() => {
-    return this.state().totalDuration * this.pixelsPerMillisecond();
+    const state = this.state();
+    // Calculate the maximum end time across all tracks
+    let maxEndTime = state.totalDuration;
+
+    for (const track of state.tracks) {
+      for (const item of track.items) {
+        const itemEndTime = item.startTime + item.duration;
+        if (itemEndTime > maxEndTime) {
+          maxEndTime = itemEndTime;
+        }
+      }
+    }
+
+    return maxEndTime * this.pixelsPerMillisecond();
   });
 
   readonly playheadPosition = computed(() => {
