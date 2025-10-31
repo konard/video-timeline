@@ -201,6 +201,86 @@ export class TimelineComponent {
   }
 
   /**
+   * Find all gaps in the track
+   * Used for finding the closest gap when requested position overlaps an item
+   */
+  private findAllGaps(trackItems: MediaItem[]): { gapStart: number; gapEnd: number; leftItem: MediaItem | null; rightItem: MediaItem | null }[] {
+    const gaps: { gapStart: number; gapEnd: number; leftItem: MediaItem | null; rightItem: MediaItem | null }[] = [];
+    const sortedItems = [...trackItems].sort((a, b) => a.startTime - b.startTime);
+
+    if (sortedItems.length === 0) {
+      return [{ gapStart: 0, gapEnd: Infinity, leftItem: null, rightItem: null }];
+    }
+
+    // Gap before first item
+    if (sortedItems[0].startTime > 0) {
+      gaps.push({
+        gapStart: 0,
+        gapEnd: sortedItems[0].startTime,
+        leftItem: null,
+        rightItem: sortedItems[0]
+      });
+    }
+
+    // Gaps between items
+    for (let i = 0; i < sortedItems.length - 1; i++) {
+      const leftItem = sortedItems[i];
+      const rightItem = sortedItems[i + 1];
+      const gapStart = leftItem.startTime + leftItem.duration;
+      const gapEnd = rightItem.startTime;
+
+      if (gapEnd > gapStart) {
+        gaps.push({ gapStart, gapEnd, leftItem, rightItem });
+      }
+    }
+
+    // Gap after last item
+    const lastItem = sortedItems[sortedItems.length - 1];
+    gaps.push({
+      gapStart: lastItem.startTime + lastItem.duration,
+      gapEnd: Infinity,
+      leftItem: lastItem,
+      rightItem: null
+    });
+
+    return gaps;
+  }
+
+  /**
+   * Find the closest gap to the requested position
+   * Used when the requested position overlaps an existing item
+   */
+  private findClosestGap(
+    requestedStartTime: number,
+    gaps: { gapStart: number; gapEnd: number; leftItem: MediaItem | null; rightItem: MediaItem | null }[]
+  ): { gapStart: number; gapEnd: number; leftItem: MediaItem | null; rightItem: MediaItem | null } {
+    let closestGap = gaps[0];
+    let minDistance = Infinity;
+
+    for (const gap of gaps) {
+      let distance: number;
+
+      if (requestedStartTime < gap.gapStart) {
+        // Requested position is before this gap
+        distance = gap.gapStart - requestedStartTime;
+      } else if (gap.gapEnd === Infinity || requestedStartTime < gap.gapEnd) {
+        // Requested position is within this gap
+        distance = 0;
+      } else {
+        // Requested position is after this gap
+        distance = requestedStartTime - gap.gapEnd;
+      }
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestGap = gap;
+      }
+    }
+
+    return closestGap;
+  }
+
+  /**
    * Finds the gap where the requested position falls and returns gap boundaries
    * Returns null if the position doesn't fall in a valid gap
    */
@@ -257,6 +337,8 @@ export class TimelineComponent {
    * Calculate valid drag position with automatic duration adjustment to fit gaps
    * Fixes issue #33: When dragging into a gap smaller than item duration,
    * adjust duration to fit instead of overlapping adjacent items
+   * Fixes issue #36: When dragging overlaps an existing item, find the closest gap
+   * instead of jumping to the end of the track
    */
   private getValidDragPosition(
     item: MediaItem,
@@ -274,17 +356,13 @@ export class TimelineComponent {
     }
 
     // Find which gap the requested position falls into
-    const gap = this.findGapForPosition(requestedStartTime, item.duration, otherItems);
+    let gap = this.findGapForPosition(requestedStartTime, item.duration, otherItems);
 
     if (!gap) {
-      // Position doesn't fall in a valid gap (shouldn't happen)
-      // Fallback: place at end of track
-      const sortedItems = [...otherItems].sort((a, b) => a.startTime - b.startTime);
-      const lastItem = sortedItems[sortedItems.length - 1];
-      return {
-        startTime: lastItem.startTime + lastItem.duration,
-        duration: item.duration
-      };
+      // Position overlaps an existing item
+      // Fix for issue #36: Find the closest gap instead of jumping to end
+      const allGaps = this.findAllGaps(otherItems);
+      gap = this.findClosestGap(requestedStartTime, allGaps);
     }
 
     const gapSize = gap.gapEnd === Infinity ? Infinity : gap.gapEnd - gap.gapStart;
