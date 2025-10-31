@@ -151,10 +151,9 @@ export class TimelineComponent {
     // Immediately update position on mouse down
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    // Get the scrollable container to account for scroll offset
-    const scrollContainer = target.closest('.overflow-x-auto') as HTMLElement;
-    const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
-    const x = event.clientX - rect.left + scrollLeft;
+    // Calculate position within the ruler element
+    // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
+    const x = event.clientX - rect.left;
     const newPosition = x / this.pixelsPerMillisecond();
 
     this.state.update(s => ({
@@ -642,20 +641,16 @@ export class TimelineComponent {
       }
 
       const rulerElement = this.timelineRuler.nativeElement;
-      const scrollContainer = rulerElement.closest('.overflow-x-auto') as HTMLElement;
+      // Use the same calculation as onRulerMouseDown
+      // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
+      const rect = rulerElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const newPosition = x / this.pixelsPerMillisecond();
 
-      if (scrollContainer) {
-        // Use the same calculation as onRulerMouseDown
-        const rect = rulerElement.getBoundingClientRect();
-        const scrollLeft = scrollContainer.scrollLeft;
-        const x = event.clientX - rect.left + scrollLeft;
-        const newPosition = x / this.pixelsPerMillisecond();
-
-        this.state.update(s => ({
-          ...s,
-          playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-        }));
-      }
+      this.state.update(s => ({
+        ...s,
+        playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
+      }));
     }
   }
 
