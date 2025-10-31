@@ -125,6 +125,12 @@ describe('TimelineComponent', () => {
     it('should not allow overlapping items when adding media', () => {
       const track = component.state().tracks[0];
 
+      // Clear any existing items
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? { ...t, items: [] } : t)
+      }));
+
       // Add first item
       component.addMediaItem(MediaType.VIDEO, track.id);
       const firstItem = component.state().tracks.find(t => t.id === track.id)?.items[0];
@@ -544,6 +550,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+
       // Simulate dragging an item with 3000ms duration into 1000ms gap
       const draggedItem = {
         id: 'item-c',
@@ -558,7 +567,7 @@ describe('TimelineComponent', () => {
       const result = (component as any).getValidDragPosition(
         draggedItem,
         5500, // Drop in the middle of the gap (5000-6000)
-        track.items
+        updatedTrack.items
       );
 
       // Should fit in the gap with adjusted duration
@@ -593,6 +602,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+
       const draggedItem = {
         id: 'item-c',
         type: MediaType.VIDEO,
@@ -606,7 +618,7 @@ describe('TimelineComponent', () => {
       const result = (component as any).getValidDragPosition(
         draggedItem,
         4500,
-        track.items
+        updatedTrack.items
       );
 
       expect(result.duration).toBe(3000); // Original duration preserved
@@ -640,6 +652,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+
       const draggedItem = {
         id: 'item-c',
         type: MediaType.VIDEO,
@@ -653,7 +668,7 @@ describe('TimelineComponent', () => {
       const result = (component as any).getValidDragPosition(
         draggedItem,
         5025,
-        track.items
+        updatedTrack.items
       );
 
       expect(result.startTime).toBe(5000);
@@ -768,13 +783,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag Item B left to 900ms (overlaps Item A)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         900,
-        track.items
+        updatedTrack.items
       );
 
       // Should stay in closest gap (between A and B), not jump to end
@@ -817,13 +834,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag Item B right to 4500ms (overlaps Item C)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         4500,
-        track.items
+        updatedTrack.items
       );
 
       // Should stay in closest gap (between B and C)
@@ -858,13 +877,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag Item B far left to negative position
       const result = (component as any).getValidDragPosition(
         draggedItem,
         -100,
-        track.items
+        updatedTrack.items
       );
 
       // Should place in gap before Item A (closest gap)
@@ -906,13 +927,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag Item B into gap between A and B (valid position)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         1500,
-        track.items
+        updatedTrack.items
       );
 
       // Should stay at requested position
@@ -947,13 +970,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag Item B far right (after all items)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         6000,
-        track.items
+        updatedTrack.items
       );
 
       // Should allow placement after last item
@@ -1002,7 +1027,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-c')!;
 
       // Drag Item C to 4500ms (which will trigger closest gap logic)
       // The closest gap will be the infinite gap after item C (starts at 8000ms)
@@ -1011,7 +1038,7 @@ describe('TimelineComponent', () => {
       const result = (component as any).getValidDragPosition(
         draggedItem,
         4500,
-        track.items
+        updatedTrack.items
       );
 
       // Should place at gap start (8000ms) to avoid overlap
@@ -1058,7 +1085,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-c')!;
 
       // Drag through various positions and ensure no overlaps
       const testPositions = [5500, 5000, 4500, 4000, 3500];
@@ -1067,7 +1096,7 @@ describe('TimelineComponent', () => {
         const result = (component as any).getValidDragPosition(
           draggedItem,
           pos,
-          track.items
+          updatedTrack.items
         );
 
         // Check no overlap with A (0-2000)
@@ -1121,13 +1150,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Try to drag B to position 500 (overlaps A at 0-1000)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         500,
-        track.items
+        updatedTrack.items
       );
 
       // Should be placed in valid gap (between A and C)
@@ -1162,13 +1193,15 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-b')!;
 
       // Drag B to position far to the right (in infinite gap)
       const result = (component as any).getValidDragPosition(
         draggedItem,
         5000,
-        track.items
+        updatedTrack.items
       );
 
       // Should place at requested position in infinite gap
@@ -1214,7 +1247,9 @@ describe('TimelineComponent', () => {
         } : t)
       }));
 
-      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+      // Get updated track after state update
+      const updatedTrack = component.state().tracks.find(t => t.id === track.id)!;
+      const draggedItem = updatedTrack.items.find(i => i.id === 'item-c')!;
 
       // Test multiple positions to ensure consistent behavior
       const testCases = [
@@ -1231,7 +1266,7 @@ describe('TimelineComponent', () => {
         const result = (component as any).getValidDragPosition(
           draggedItem,
           testCase.pos,
-          track.items
+          updatedTrack.items
         );
 
         // Verify no overlap with A (0-1000) or B (3000-5000)
