@@ -14,6 +14,7 @@ export class TimelineComponent {
   private readonly MIN_ZOOM = 10;
   private readonly MAX_ZOOM = 200;
   private readonly ZOOM_STEP = 20;
+  private readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
 
   // Timeline state
   readonly state = signal<TimelineState>({
@@ -37,6 +38,10 @@ export class TimelineComponent {
 
   readonly playheadPosition = computed(() => {
     return this.state().playheadPosition * this.pixelsPerMillisecond();
+  });
+
+  readonly playheadVisualPosition = computed(() => {
+    return this.playheadPosition() + this.TRACK_HEADER_WIDTH;
   });
 
   // Dragging state
