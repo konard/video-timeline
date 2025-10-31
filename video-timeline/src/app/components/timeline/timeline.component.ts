@@ -432,9 +432,36 @@ export class TimelineComponent {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   }
 
+  /**
+   * Calculate appropriate time interval for markers based on zoom level
+   * to prevent marker labels from overlapping
+   */
+  private getMarkerInterval(): number {
+    // Minimum spacing between markers in pixels to prevent overlap
+    // Enough space for "0:00.000" text (about 50-60px)
+    const MIN_MARKER_SPACING_PX = 60;
+
+    // Calculate how much time represents MIN_MARKER_SPACING_PX at current zoom
+    const pixelsPerMs = this.pixelsPerMillisecond();
+    const minTimeSpacing = MIN_MARKER_SPACING_PX / pixelsPerMs;
+
+    // Define possible intervals (in ms): 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s, 60s
+    const intervals = [100, 250, 500, 1000, 2000, 5000, 10000, 30000, 60000];
+
+    // Find the smallest interval that's larger than or equal to minTimeSpacing
+    for (const interval of intervals) {
+      if (interval >= minTimeSpacing) {
+        return interval;
+      }
+    }
+
+    // If even 60s is too small, use larger intervals
+    return Math.ceil(minTimeSpacing / 60000) * 60000;
+  }
+
   getTimeMarkers(): { position: number; label: string }[] {
     const markers: { position: number; label: string }[] = [];
-    const stepMs = 1000; // 1 second intervals
+    const stepMs = this.getMarkerInterval(); // Dynamic interval based on zoom level
 
     for (let time = 0; time <= this.state().totalDuration; time += stepMs) {
       markers.push({
