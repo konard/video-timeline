@@ -57,6 +57,10 @@ export class TimelineComponent {
   // Video preview state
   readonly isPlaying = signal<boolean>(false);
 
+  // Duration editor state
+  readonly showDurationEditor = signal<boolean>(false);
+  private editedDuration: number = 60; // Duration in seconds
+
   constructor() {
     // Add some demo items
     this.addDemoItems();
@@ -340,6 +344,7 @@ export class TimelineComponent {
    * Fixes issue #36: When dragging overlaps an existing item, find the closest gap
    * instead of jumping to the end of the track
    * Fixes issue #38: Prevent overlaps by ensuring items always start at or after gap start
+   * Fixes issue #48: Enforce strict totalDuration limit when dragging items
    */
   private getValidDragPosition(
     item: MediaItem,
@@ -347,12 +352,16 @@ export class TimelineComponent {
     trackItems: MediaItem[]
   ): { startTime: number; duration: number } {
     const otherItems = trackItems.filter(i => i.id !== item.id);
+    const totalDuration = this.state().totalDuration;
 
     // Empty track - place at requested position with original duration
+    // but ensure we don't exceed totalDuration
     if (otherItems.length === 0) {
+      const startTime = Math.max(0, requestedStartTime);
+      const maxDuration = totalDuration - startTime;
       return {
-        startTime: Math.max(0, requestedStartTime),
-        duration: item.duration
+        startTime,
+        duration: Math.min(item.duration, maxDuration)
       };
     }
 
@@ -370,27 +379,35 @@ export class TimelineComponent {
 
     // If gap is infinite (after last item), use original duration
     // Fix for issue #38: Ensure item starts at or after gap start to prevent overlap
+    // Fix for issue #48: Respect totalDuration limit even in infinite gap
     if (gapSize === Infinity) {
+      const startTime = Math.max(gap.gapStart, requestedStartTime);
+      const maxDuration = totalDuration - startTime;
       return {
-        startTime: Math.max(gap.gapStart, requestedStartTime),
-        duration: item.duration
+        startTime,
+        duration: Math.min(item.duration, maxDuration)
       };
     }
 
     // If item fits completely in the gap, use original duration
+    // Fix for issue #48: Also check totalDuration limit
     if (item.duration <= gapSize) {
       // Make sure the item doesn't go past the gap end
       const maxStartTime = gap.gapEnd - item.duration;
       const finalStartTime = Math.max(gap.gapStart, Math.min(requestedStartTime, maxStartTime));
+      // Ensure we don't exceed totalDuration
+      const maxDuration = totalDuration - finalStartTime;
       return {
         startTime: finalStartTime,
-        duration: item.duration
+        duration: Math.min(item.duration, maxDuration)
       };
     }
 
     // Item doesn't fit - adjust duration to fit the gap
     // Respect minimum duration constraint
-    const adjustedDuration = Math.max(this.MIN_ITEM_DURATION, gapSize);
+    // Fix for issue #48: Also respect totalDuration limit
+    const maxDuration = totalDuration - gap.gapStart;
+    const adjustedDuration = Math.max(this.MIN_ITEM_DURATION, Math.min(gapSize, maxDuration));
 
     return {
       startTime: gap.gapStart,
@@ -401,6 +418,7 @@ export class TimelineComponent {
   private getResizeBounds(item: MediaItem, trackItems: MediaItem[], edge: 'left' | 'right'): { minTime: number; maxTime: number } {
     const otherItems = trackItems.filter(i => i.id !== item.id)
       .sort((a, b) => a.startTime - b.startTime);
+    const totalDuration = this.state().totalDuration;
 
     if (edge === 'left') {
       // Find item to the left
@@ -418,7 +436,8 @@ export class TimelineComponent {
         .find(i => i.startTime >= item.startTime + item.duration);
 
       const minTime = item.startTime + 100; // Minimum duration
-      const maxTime = rightItem ? rightItem.startTime : Infinity;
+      // Fix for issue #48: Respect totalDuration limit when resizing right edge
+      const maxTime = rightItem ? Math.min(rightItem.startTime, totalDuration) : totalDuration;
 
       return { minTime, maxTime };
     }
@@ -705,6 +724,7 @@ export class TimelineComponent {
     if (!track) return;
 
     const playheadTime = currentState.playheadPosition;
+    const totalDuration = currentState.totalDuration;
     const newItemDuration = type === MediaType.IMAGE ? 5000 : 3000;
 
     // Determine the start time for the new item
@@ -763,21 +783,26 @@ export class TimelineComponent {
       startTime = playheadTime;
     }
 
+    // Fix for issue #48: Ensure new item doesn't exceed totalDuration
+    const maxAllowedDuration = totalDuration - startTime;
+    const finalDuration = Math.min(newItemDuration, maxAllowedDuration);
+
     const newItem: MediaItem = {
       id: `item-${Date.now()}`,
       type,
       startTime,
-      duration: newItemDuration,
+      duration: finalDuration,
       trackId,
       name: `${type} placeholder`,
       isPlaceholder: true
     };
 
     // Set maxDuration for audio and video placeholders
+    // Fix for issue #48: Respect totalDuration limit
     if (type === MediaType.VIDEO) {
-      newItem.maxDuration = 10000; // 10 seconds default for video
+      newItem.maxDuration = Math.min(10000, maxAllowedDuration); // 10 seconds default for video
     } else if (type === MediaType.AUDIO) {
-      newItem.maxDuration = 15000; // 15 seconds default for audio
+      newItem.maxDuration = Math.min(15000, maxAllowedDuration); // 15 seconds default for audio
     }
 
     this.state.update(s => ({
@@ -826,5 +851,34 @@ export class TimelineComponent {
   getTrackNumber(trackName: string): string {
     const match = trackName.match(/\d+/);
     return match ? match[0] : trackName;
+  }
+
+  // Duration editor methods
+  openDurationEditor(): void {
+    this.editedDuration = this.state().totalDuration / 1000;
+    this.showDurationEditor.set(true);
+  }
+
+  closeDurationEditor(): void {
+    this.showDurationEditor.set(false);
+  }
+
+  onDurationInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseFloat(input.value);
+    if (!isNaN(value) && value > 0) {
+      this.editedDuration = value;
+    }
+  }
+
+  saveDuration(): void {
+    const newDurationMs = Math.max(1000, this.editedDuration * 1000); // At least 1 second
+    this.state.update(s => ({
+      ...s,
+      totalDuration: newDurationMs,
+      // Ensure playhead doesn't exceed new duration
+      playheadPosition: Math.min(s.playheadPosition, newDurationMs)
+    }));
+    this.closeDurationEditor();
   }
 }

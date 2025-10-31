@@ -1243,4 +1243,211 @@ describe('TimelineComponent', () => {
       }
     });
   });
+
+  describe('Total Duration Management (Issue #48)', () => {
+    it('should display total duration in format "current / total"', () => {
+      component.state.update(s => ({ ...s, playheadPosition: 10000, totalDuration: 60000 }));
+      fixture.detectChanges();
+
+      const timeDisplay = fixture.nativeElement.querySelector('[title*="изменить общую продолжительность"]');
+      expect(timeDisplay).toBeTruthy();
+      // Should show something like "0:10.00 / 1:00.00"
+      expect(timeDisplay.textContent).toContain('/');
+    });
+
+    it('should open duration editor when clicking on time display', () => {
+      expect(component.showDurationEditor()).toBe(false);
+      component.openDurationEditor();
+      expect(component.showDurationEditor()).toBe(true);
+    });
+
+    it('should close duration editor on cancel', () => {
+      component.openDurationEditor();
+      expect(component.showDurationEditor()).toBe(true);
+      component.closeDurationEditor();
+      expect(component.showDurationEditor()).toBe(false);
+    });
+
+    it('should update total duration when saved', () => {
+      const initialDuration = component.state().totalDuration;
+      component.openDurationEditor();
+
+      // Simulate input change to 120 seconds
+      const mockEvent = {
+        target: { value: '120' }
+      } as unknown as Event;
+      component.onDurationInputChange(mockEvent);
+      component.saveDuration();
+
+      expect(component.state().totalDuration).toBe(120000); // 120 seconds in ms
+      expect(component.showDurationEditor()).toBe(false);
+    });
+
+    it('should ensure playhead does not exceed total duration when reducing it', () => {
+      component.state.update(s => ({ ...s, playheadPosition: 50000, totalDuration: 60000 }));
+
+      component.openDurationEditor();
+      const mockEvent = {
+        target: { value: '30' } // Set to 30 seconds
+      } as unknown as Event;
+      component.onDurationInputChange(mockEvent);
+      component.saveDuration();
+
+      expect(component.state().totalDuration).toBe(30000);
+      expect(component.state().playheadPosition).toBeLessThanOrEqual(30000);
+    });
+
+    it('should enforce minimum duration of 1 second', () => {
+      component.openDurationEditor();
+
+      const mockEvent = {
+        target: { value: '0.5' } // Try to set to 0.5 seconds
+      } as unknown as Event;
+      component.onDurationInputChange(mockEvent);
+      component.saveDuration();
+
+      expect(component.state().totalDuration).toBeGreaterThanOrEqual(1000);
+    });
+
+    it('should prevent items from exceeding totalDuration when dragging', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        totalDuration: 10000, // 10 seconds
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item-a',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 3000,
+            trackId: track.id,
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      const draggedItem = track.items[0];
+
+      // Try to drag to position that would exceed totalDuration
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        8000, // Start at 8000ms with 3000ms duration would exceed 10000ms
+        []
+      );
+
+      // Duration should be adjusted to fit within totalDuration
+      expect(result.startTime + result.duration).toBeLessThanOrEqual(10000);
+    });
+
+    it('should prevent items from exceeding totalDuration when resizing', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        totalDuration: 10000, // 10 seconds
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item-a',
+            type: MediaType.VIDEO,
+            startTime: 5000,
+            duration: 3000,
+            trackId: track.id,
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      const item = track.items[0];
+
+      // Get resize bounds for right edge
+      const bounds = (component as any).getResizeBounds(item, track.items, 'right');
+
+      // Max time should not exceed totalDuration
+      expect(bounds.maxTime).toBeLessThanOrEqual(10000);
+    });
+
+    it('should adjust new item duration if it would exceed totalDuration', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        totalDuration: 6000, // 6 seconds
+        playheadPosition: 5000, // 5 seconds
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: []
+        } : t)
+      }));
+
+      // Add a video item (default 3000ms) at playhead (5000ms)
+      // Would exceed totalDuration (6000ms)
+      component.addMediaItem(MediaType.VIDEO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      const newItem = items[items.length - 1];
+
+      // Item should be adjusted to fit within totalDuration
+      expect(newItem.startTime + newItem.duration).toBeLessThanOrEqual(6000);
+    });
+
+    it('should respect totalDuration when dragging into infinite gap', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        totalDuration: 15000, // 15 seconds
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item-a',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 5000,
+            trackId: track.id,
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      const draggedItem = {
+        id: 'item-b',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 8000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      // Drag to position 10000ms with 8000ms duration (would be 18000ms total)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        10000,
+        track.items
+      );
+
+      // Should be constrained to totalDuration
+      expect(result.startTime + result.duration).toBeLessThanOrEqual(15000);
+    });
+
+    it('should adjust maxDuration of new items based on available space to totalDuration', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        totalDuration: 8000, // 8 seconds
+        playheadPosition: 3000,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: []
+        } : t)
+      }));
+
+      // Add a video item - maxDuration is normally 10000ms
+      component.addMediaItem(MediaType.VIDEO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      const newItem = items[items.length - 1];
+
+      // maxDuration should be limited by available space (8000 - 3000 = 5000)
+      expect(newItem.maxDuration).toBeLessThanOrEqual(5000);
+    });
+  });
 });
