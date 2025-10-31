@@ -14,7 +14,7 @@ export class TimelineComponent {
   private readonly MIN_ZOOM = 10;
   private readonly MAX_ZOOM = 200;
   private readonly ZOOM_STEP = 20;
-  private readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
+  readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
   private readonly SNAP_PROXIMITY_MS = 500; // Snap to item if playhead is within 500ms
   private readonly MIN_ITEM_DURATION = 100; // Minimum item duration in milliseconds
 
