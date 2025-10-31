@@ -725,4 +725,238 @@ describe('TimelineComponent', () => {
       expect(result.duration).toBe(3000); // Original duration (infinite gap)
     });
   });
+
+  describe('Placeholder Jumping Bug (Issue #36)', () => {
+    it('should not jump to end when dragging left and overlapping previous item', () => {
+      // Setup: Three items on a track
+      // Item A: 0-1000ms
+      // Item B: 2000-3000ms (we'll drag this)
+      // Item C: 4000-5000ms
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 4000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag Item B left to 900ms (overlaps Item A)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        900,
+        track.items
+      );
+
+      // Should stay in closest gap (between A and B), not jump to end
+      expect(result.startTime).toBe(1000); // Gap between A and B starts at 1000ms
+      expect(result.startTime).not.toBe(5000); // Should NOT jump to end after C
+    });
+
+    it('should not jump to end when dragging right and overlapping next item', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 4000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag Item B right to 4500ms (overlaps Item C)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        4500,
+        track.items
+      );
+
+      // Should stay in closest gap (between B and C)
+      expect(result.startTime).toBe(3000); // Gap between B and C starts at 3000ms
+      expect(result.startTime).not.toBe(5000); // Should NOT jump to end after C
+    });
+
+    it('should place in closest gap when dragging far left before all items', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 1000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 3000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag Item B far left to negative position
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        -100,
+        track.items
+      );
+
+      // Should place in gap before Item A (closest gap)
+      expect(result.startTime).toBe(0); // Gap before A starts at 0
+    });
+
+    it('should handle dragging into middle gap smoothly', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 4000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag Item B into gap between A and B (valid position)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        1500,
+        track.items
+      );
+
+      // Should stay at requested position
+      expect(result.startTime).toBe(1500);
+      expect(result.duration).toBe(1000); // Original duration preserved
+    });
+
+    it('should allow dragging to end of track when intended', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag Item B far right (after all items)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        6000,
+        track.items
+      );
+
+      // Should allow placement after last item
+      expect(result.startTime).toBe(6000);
+      expect(result.duration).toBe(1000); // Original duration in infinite gap
+    });
+  });
 });
