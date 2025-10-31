@@ -3,19 +3,6 @@
   <div class="flex justify-between items-center px-4 py-3 bg-[#252525] border-b border-[#3a3a3a]">
     <h2 class="text-lg font-semibold m-0">Timeline</h2>
     <div class="flex gap-4 items-center">
-      <button (click)="addTrack()" class="px-3 py-1.5 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700 flex items-center gap-1.5">
-        <i class="bi bi-plus-circle"></i>
-        Add Track
-      </button>
-      <div class="flex gap-2 items-center">
-        <button (click)="zoomOut()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a]">
-          <i class="bi bi-zoom-out"></i>
-        </button>
-        <span class="text-xs text-gray-400">Zoom</span>
-        <button (click)="zoomIn()" class="px-2.5 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a]">
-          <i class="bi bi-zoom-in"></i>
-        </button>
-      </div>
       <div class="font-mono text-sm px-3 py-1 bg-[#2a2a2a] rounded">{{ formatTime(state().playheadPosition) }}</div>
     </div>
   </div>
@@ -56,8 +43,21 @@
   <div class="flex-1 flex flex-col overflow-y-auto overflow-x-auto relative">
     <!-- Timeline Ruler -->
     <div class="flex border-b border-[#3a3a3a] flex-shrink-0">
-      <!-- Empty space to align with track headers -->
-      <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a]"></div>
+      <!-- Control area to align with track headers -->
+      <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a] flex flex-col justify-center items-center gap-2 p-2">
+        <button (click)="addTrack()" class="px-2 py-1 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700 flex items-center gap-1.5">
+          <i class="bi bi-plus-circle"></i>
+          <span class="text-xs">Track</span>
+        </button>
+        <div class="flex gap-1 items-center">
+          <button (click)="zoomOut()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]">
+            <i class="bi bi-zoom-out"></i>
+          </button>
+          <button (click)="zoomIn()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]">
+            <i class="bi bi-zoom-in"></i>
+          </button>
+        </div>
+      </div>
       <!-- Ruler content -->
       <div class="relative h-10 bg-[#2a2a2a] flex-1">
         <div class="relative h-full min-w-full cursor-pointer"
@@ -79,29 +79,29 @@
       <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
         <!-- Track header -->
         <div class="flex flex-col justify-between min-w-[150px] p-2 bg-[#252525] border-r border-[#3a3a3a]">
-          <span class="text-sm font-medium mb-1">{{ track.name }}</span>
+          <span class="text-sm font-medium mb-1">{{ getTrackNumber(track.name) }}</span>
           <div class="flex gap-1 flex-wrap">
             <button
               (click)="addMediaItem(MediaType.VIDEO, track.id)"
-              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
               title="Add video placeholder">
               <i class="bi bi-camera-video"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.AUDIO, track.id)"
-              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
               title="Add audio placeholder">
               <i class="bi bi-volume-up"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.IMAGE, track.id)"
-              class="px-1.5 py-0.5 text-xs bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]"
+              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
               title="Add image placeholder">
               <i class="bi bi-image"></i>
             </button>
             <button
               (click)="removeTrack(track.id)"
-              class="px-1.5 py-0.5 text-xs bg-red-600 text-white border-none rounded cursor-pointer transition-colors hover:bg-red-700"
+              class="p-1 text-base text-red-500 border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
               title="Remove track">
               <i class="bi bi-trash"></i>
             </button>
