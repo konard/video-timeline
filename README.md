@@ -234,6 +234,18 @@ The application is optimized for modern browsers supporting ES2022 features.
 
 This project is automatically deployed to GitHub Pages using GitHub Actions. The deployment happens automatically when changes are pushed to the `main` branch.
 
+#### Initial Setup
+
+Before the deployment workflow can run successfully, GitHub Pages must be configured for the repository:
+
+1. Go to your repository **Settings** → **Pages**
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**
+3. Save the settings
+
+The workflow will then be able to deploy automatically on every push to `main`.
+
+**Note**: The workflow includes `enablement: true` in the `actions/configure-pages` step, which attempts to enable GitHub Pages automatically. However, if this fails with a permissions error, manual setup through repository settings (as described above) is required.
+
 #### How it Works
 
 1. **GitHub Actions Workflow**: The `.github/workflows/deploy.yml` file defines a CI/CD pipeline that:
