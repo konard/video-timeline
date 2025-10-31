@@ -5,7 +5,7 @@
     <div class="flex gap-4 items-center">
       <div class="font-mono text-sm px-3 py-1 bg-[#2a2a2a] rounded cursor-pointer hover:bg-[#3a3a3a] transition-colors"
            (click)="openDurationEditor()"
-           title="Нажмите, чтобы изменить общую продолжительность">
+           title="Click to change total duration">
         {{ formatTime(state().playheadPosition) }} / {{ formatTime(state().totalDuration) }}
       </div>
     </div>
@@ -18,24 +18,24 @@
       <div class="w-[640px] h-[360px] bg-[#1a1a1a] rounded-lg border border-[#3a3a3a] flex items-center justify-center">
         <div class="flex flex-col items-center gap-2 text-gray-400">
           <i class="bi bi-film text-6xl"></i>
-          <span class="text-sm">Предпросмотр видео</span>
+          <span class="text-sm">Video preview</span>
         </div>
       </div>
 
       <!-- Playback Controls -->
       <div class="flex gap-2 items-center">
-        <button (click)="skipBackward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Назад на 5 секунд">
+        <button (click)="skipBackward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Back 5 seconds">
           <i class="bi bi-skip-backward-fill"></i>
           <span class="text-xs">5s</span>
         </button>
-        <button (click)="togglePlayback()" class="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-xl transition-colors hover:bg-blue-700" [title]="isPlaying() ? 'Пауза' : 'Воспроизведение'">
+        <button (click)="togglePlayback()" class="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-xl transition-colors hover:bg-blue-700" [title]="isPlaying() ? 'Pause' : 'Play'">
           @if (isPlaying()) {
             <i class="bi bi-pause-fill"></i>
           } @else {
             <i class="bi bi-play-fill"></i>
           }
         </button>
-        <button (click)="skipForward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Вперёд на 5 секунд">
+        <button (click)="skipForward()" class="px-3 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-base transition-colors hover:bg-[#4a4a4a] flex items-center gap-1.5" title="Forward 5 seconds">
           <span class="text-xs">5s</span>
           <i class="bi bi-skip-forward-fill"></i>
         </button>
@@ -49,13 +49,13 @@
     <div class="flex border-b border-[#3a3a3a] flex-shrink-0">
       <!-- Control area to align with track headers -->
       <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a] flex justify-center items-center gap-1 p-2">
-        <button (click)="addTrack()" class="px-2 py-1 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700" title="Добавить трек">
+        <button (click)="addTrack()" class="px-2 py-1 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700" title="Add track">
           <i class="bi bi-plus-circle"></i>
         </button>
-        <button (click)="zoomOut()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Уменьшить масштаб">
+        <button (click)="zoomOut()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Zoom out">
           <i class="bi bi-zoom-out"></i>
         </button>
-        <button (click)="zoomIn()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Увеличить масштаб">
+        <button (click)="zoomIn()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Zoom in">
           <i class="bi bi-zoom-in"></i>
         </button>
       </div>
@@ -86,19 +86,19 @@
             <button
               (click)="addMediaItem(MediaType.VIDEO, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Добавить видео">
+              title="Add video">
               <i class="bi bi-camera-video"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.AUDIO, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Добавить аудио">
+              title="Add audio">
               <i class="bi bi-volume-up"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.IMAGE, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Добавить изображение">
+              title="Add image">
               <i class="bi bi-image"></i>
             </button>
             <button
@@ -172,10 +172,10 @@
   @if (showDurationEditor()) {
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]" (click)="closeDurationEditor()">
       <div class="bg-[#2a2a2a] rounded-lg p-6 min-w-[400px] border border-[#3a3a3a]" (click)="$event.stopPropagation()">
-        <h3 class="text-lg font-semibold mb-4 mt-0">Общая продолжительность видео</h3>
+        <h3 class="text-lg font-semibold mb-4 mt-0">Total video duration</h3>
 
         <div class="mb-4">
-          <label class="block text-sm text-gray-400 mb-2">Продолжительность (в секундах):</label>
+          <label class="block text-sm text-gray-400 mb-2">Duration (in seconds):</label>
           <input
             type="number"
             min="1"
@@ -185,19 +185,19 @@
             (input)="onDurationInputChange($event)"
             class="w-full px-3 py-2 bg-[#1e1e1e] border border-[#3a3a3a] rounded text-white focus:outline-none focus:border-blue-500"
             placeholder="60">
-          <div class="text-xs text-gray-500 mt-1">Текущее значение: {{ formatTime(state().totalDuration) }}</div>
+          <div class="text-xs text-gray-500 mt-1">Current value: {{ formatTime(state().totalDuration) }}</div>
         </div>
 
         <div class="flex gap-2 justify-end">
           <button
             (click)="closeDurationEditor()"
             class="px-4 py-2 bg-[#3a3a3a] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#4a4a4a]">
-            Отмена
+            Cancel
           </button>
           <button
             (click)="saveDuration()"
             class="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer transition-colors hover:bg-blue-700">
-            Сохранить
+            Save
           </button>
         </div>
       </div>
