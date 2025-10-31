@@ -111,9 +111,8 @@
         </div>
 
         <!-- Track timeline -->
-        <div class="relative flex-1">
+        <div class="relative flex-1" [style.width.px]="timelineWidth()">
           <div class="track relative bg-[#1a1a1a] min-h-[60px]"
-               [style.width.px]="timelineWidth()"
                (mousemove)="onTrackMouseMove($event, track)">
 
           @for (item of track.items; track item.id) {
