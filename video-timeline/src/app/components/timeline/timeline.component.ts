@@ -765,6 +765,11 @@ export class TimelineComponent {
 
           if (itemBefore) {
             startTime = itemBefore.startTime + itemBefore.duration;
+          } else if (closestItem.startTime === 0) {
+            // Can't place before an item at position 0, place after the last item instead
+            const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+            const lastItem = sortedItems[sortedItems.length - 1];
+            startTime = lastItem.startTime + lastItem.duration;
           } else {
             startTime = 0;
           }
