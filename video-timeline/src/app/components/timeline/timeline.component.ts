@@ -394,20 +394,25 @@ export class TimelineComponent {
 
   onDocumentMouseMove(event: MouseEvent): void {
     if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      // Find the ruler element within the timeline content wrapper
-      const ruler = event.currentTarget as HTMLElement;
-      const contentWrapper = ruler.querySelector('.flex-1.flex.flex-col') as HTMLElement;
+      // Find the ruler element to calculate position (same as onRulerMouseDown)
+      const rootElement = event.currentTarget as HTMLElement;
+      const scrollContainer = rootElement.querySelector('.flex-1.flex.flex-col.overflow-y-auto.overflow-x-auto') as HTMLElement;
 
-      if (contentWrapper) {
-        const rect = contentWrapper.getBoundingClientRect();
-        const scrollLeft = contentWrapper.scrollLeft;
-        const x = event.clientX - rect.left + scrollLeft;
-        const newPosition = x / this.pixelsPerMillisecond();
+      if (scrollContainer) {
+        // Find the actual ruler content element (the one with mousedown handler)
+        const rulerContent = scrollContainer.querySelector('.cursor-pointer') as HTMLElement;
 
-        this.state.update(s => ({
-          ...s,
-          playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-        }));
+        if (rulerContent) {
+          const rect = rulerContent.getBoundingClientRect();
+          const scrollLeft = scrollContainer.scrollLeft;
+          const x = event.clientX - rect.left + scrollLeft;
+          const newPosition = x / this.pixelsPerMillisecond();
+
+          this.state.update(s => ({
+            ...s,
+            playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
+          }));
+        }
       }
     }
   }
