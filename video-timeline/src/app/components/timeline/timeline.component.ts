@@ -1,4 +1,4 @@
-import { Component, signal, computed, effect } from '@angular/core';
+import { Component, signal, computed, effect, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MediaType, MediaItem, Track, TimelineState } from '../../models/timeline.models';
 
@@ -17,6 +17,9 @@ export class TimelineComponent {
   private readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
   private readonly SNAP_PROXIMITY_MS = 500; // Snap to item if playhead is within 500ms
   private readonly MIN_ITEM_DURATION = 100; // Minimum item duration in milliseconds
+
+  // View references
+  @ViewChild('timelineRuler') timelineRuler?: ElementRef<HTMLElement>;
 
   // Timeline state
   readonly state = signal<TimelineState>({
@@ -633,29 +636,25 @@ export class TimelineComponent {
 
   onDocumentMouseMove(event: MouseEvent): void {
     if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      // Fix for issue #50: Use the same calculation as onRulerMouseDown for consistency
-      // Find the ruler element directly to avoid coordinate system mismatches
-      const rootElement = event.currentTarget as HTMLElement;
-      const scrollContainer = rootElement.querySelector('.flex-1.flex.flex-col.overflow-y-auto.overflow-x-auto') as HTMLElement;
+      // Fix for issue #50: Use ViewChild reference to ensure we use the exact same element as onRulerMouseDown
+      if (!this.timelineRuler) {
+        return;
+      }
+
+      const rulerElement = this.timelineRuler.nativeElement;
+      const scrollContainer = rulerElement.closest('.overflow-x-auto') as HTMLElement;
 
       if (scrollContainer) {
-        // Find the ruler content element - this is what onRulerMouseDown uses
-        const rulerContent = scrollContainer.querySelector('.relative.h-full.min-w-full.cursor-pointer') as HTMLElement;
+        // Use the same calculation as onRulerMouseDown
+        const rect = rulerElement.getBoundingClientRect();
+        const scrollLeft = scrollContainer.scrollLeft;
+        const x = event.clientX - rect.left + scrollLeft;
+        const newPosition = x / this.pixelsPerMillisecond();
 
-        if (rulerContent) {
-          // Use the ruler element's bounding rect (same as onRulerMouseDown)
-          const rect = rulerContent.getBoundingClientRect();
-          const scrollLeft = scrollContainer.scrollLeft;
-          // Same calculation as onRulerMouseDown - no need to subtract TRACK_HEADER_WIDTH
-          // because rect.left already accounts for it
-          const x = event.clientX - rect.left + scrollLeft;
-          const newPosition = x / this.pixelsPerMillisecond();
-
-          this.state.update(s => ({
-            ...s,
-            playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-          }));
-        }
+        this.state.update(s => ({
+          ...s,
+          playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
+        }));
       }
     }
   }

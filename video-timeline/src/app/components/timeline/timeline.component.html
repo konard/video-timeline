@@ -63,7 +63,8 @@
       <div class="relative h-10 bg-[#2a2a2a] flex-1">
         <div class="relative h-full min-w-full cursor-pointer"
              [style.width.px]="timelineWidth()"
-             (mousedown)="onRulerMouseDown($event)">
+             (mousedown)="onRulerMouseDown($event)"
+             #timelineRuler>
           @for (marker of getTimeMarkers(); track marker.position) {
             <div class="absolute top-0 h-full" [style.left.px]="marker.position">
               <div class="w-px h-[60%] bg-[#4a4a4a]"></div>
