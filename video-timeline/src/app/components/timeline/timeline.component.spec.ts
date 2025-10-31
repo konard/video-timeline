@@ -277,4 +277,239 @@ describe('TimelineComponent', () => {
       }
     });
   });
+
+  describe('Playhead-based Media Placement', () => {
+    beforeEach(() => {
+      // Clear all items from tracks before each test
+      const currentState = component.state();
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => ({ ...t, items: [] })),
+        playheadPosition: 0
+      }));
+    });
+
+    it('should place new media at playhead position when track is empty', () => {
+      const track = component.state().tracks[0];
+      const playheadPosition = 5000; // 5 seconds
+
+      // Set playhead position
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add media item
+      component.addMediaItem(MediaType.VIDEO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(1);
+      expect(items[0].startTime).toBe(playheadPosition);
+    });
+
+    it('should place new media at playhead position when no overlap', () => {
+      const track = component.state().tracks[0];
+
+      // Add an existing item at 0-5000ms
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item1',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 5000,
+            trackId: track.id,
+            name: 'Item 1',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      // Set playhead at 10000ms (no overlap)
+      const playheadPosition = 10000;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(2);
+      expect(items[1].startTime).toBe(playheadPosition);
+    });
+
+    it('should place new media after last item when playhead overlaps existing item', () => {
+      const track = component.state().tracks[0];
+
+      // Add existing item at 0-5000ms
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item1',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 5000,
+            trackId: track.id,
+            name: 'Item 1',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      // Set playhead at 2500ms (overlaps with item1)
+      const playheadPosition = 2500;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(2);
+      // Should be placed after item1 (at 5000ms)
+      expect(items[1].startTime).toBe(5000);
+    });
+
+    it('should snap to end of closest item when playhead is within SNAP_PROXIMITY_MS', () => {
+      const track = component.state().tracks[0];
+
+      // Add existing item at 0-5000ms
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item1',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 5000,
+            trackId: track.id,
+            name: 'Item 1',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      // Set playhead at 5300ms (300ms from end of item1, within 500ms snap proximity)
+      const playheadPosition = 5300;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(2);
+      // Should snap to end of item1 (at 5000ms)
+      expect(items[1].startTime).toBe(5000);
+    });
+
+    it('should snap to start of closest item when playhead is within SNAP_PROXIMITY_MS before it', () => {
+      const track = component.state().tracks[0];
+
+      // Add existing item at 5000-10000ms
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item1',
+            type: MediaType.VIDEO,
+            startTime: 5000,
+            duration: 5000,
+            trackId: track.id,
+            name: 'Item 1',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      // Set playhead at 4700ms (300ms before start of item1, within 500ms snap proximity)
+      const playheadPosition = 4700;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(2);
+      // Should snap to start of item1, which means placing at 0 (before item1)
+      expect(items[1].startTime).toBe(0);
+    });
+
+    it('should not snap when playhead is beyond SNAP_PROXIMITY_MS', () => {
+      const track = component.state().tracks[0];
+
+      // Add existing item at 0-5000ms
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [{
+            id: 'item1',
+            type: MediaType.VIDEO,
+            startTime: 0,
+            duration: 5000,
+            trackId: track.id,
+            name: 'Item 1',
+            isPlaceholder: true
+          }]
+        } : t)
+      }));
+
+      // Set playhead at 5600ms (600ms from end of item1, beyond 500ms snap proximity)
+      const playheadPosition = 5600;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.AUDIO, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(2);
+      // Should be placed at playhead position (5600ms), not snapped to item1
+      expect(items[1].startTime).toBe(playheadPosition);
+    });
+
+    it('should handle multiple items and snap to closest one', () => {
+      const track = component.state().tracks[0];
+
+      // Add two existing items
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item1',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 3000,
+              trackId: track.id,
+              name: 'Item 1',
+              isPlaceholder: true
+            },
+            {
+              id: 'item2',
+              type: MediaType.AUDIO,
+              startTime: 10000,
+              duration: 5000,
+              trackId: track.id,
+              name: 'Item 2',
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      // Set playhead at 10200ms (200ms from start of item2, within snap proximity)
+      const playheadPosition = 10200;
+      component.state.update(s => ({ ...s, playheadPosition }));
+
+      // Add new item
+      component.addMediaItem(MediaType.IMAGE, track.id);
+
+      const items = component.state().tracks.find(t => t.id === track.id)?.items || [];
+      expect(items.length).toBe(3);
+      // Should snap to start of item2, placing new item at 3000ms (after item1)
+      expect(items[2].startTime).toBe(3000);
+    });
+  });
 });

@@ -15,6 +15,7 @@ export class TimelineComponent {
   private readonly MAX_ZOOM = 200;
   private readonly ZOOM_STEP = 20;
   private readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
+  private readonly SNAP_PROXIMITY_MS = 500; // Snap to item if playhead is within 500ms
 
   // Timeline state
   readonly state = signal<TimelineState>({
@@ -165,6 +166,37 @@ export class TimelineComponent {
     const item1End = item1.startTime + item1.duration;
     const item2End = item2.startTime + item2.duration;
     return !(item1End <= item2.startTime || item2End <= item1.startTime);
+  }
+
+  /**
+   * Finds the closest item to the given time position in the track
+   * Returns null if no items exist in the track
+   */
+  private findClosestItem(trackItems: MediaItem[], time: number): MediaItem | null {
+    if (trackItems.length === 0) return null;
+
+    let closestItem = trackItems[0];
+    let minDistance = Math.abs(closestItem.startTime - time);
+
+    for (const item of trackItems) {
+      const itemEnd = item.startTime + item.duration;
+
+      // Calculate distance to the start of the item
+      const distanceToStart = Math.abs(item.startTime - time);
+
+      // Calculate distance to the end of the item
+      const distanceToEnd = Math.abs(itemEnd - time);
+
+      // Use the minimum distance (to either start or end of item)
+      const distance = Math.min(distanceToStart, distanceToEnd);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestItem = item;
+      }
+    }
+
+    return closestItem;
   }
 
   private getValidDragPosition(item: MediaItem, requestedStartTime: number, trackItems: MediaItem[]): number {
@@ -485,20 +517,70 @@ export class TimelineComponent {
 
     if (!track) return;
 
-    // Find the position for the new item (after the last item or at start)
+    const playheadTime = currentState.playheadPosition;
+    const newItemDuration = type === MediaType.IMAGE ? 5000 : 3000;
+
+    // Determine the start time for the new item
     let startTime = 0;
+
     if (track.items.length > 0) {
-      // Sort items by start time and place after the last one
-      const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
-      const lastItem = sortedItems[sortedItems.length - 1];
-      startTime = lastItem.startTime + lastItem.duration;
+      // Find the closest item to the playhead
+      const closestItem = this.findClosestItem(track.items, playheadTime);
+
+      if (closestItem) {
+        const itemEnd = closestItem.startTime + closestItem.duration;
+        const distanceToStart = Math.abs(closestItem.startTime - playheadTime);
+        const distanceToEnd = Math.abs(itemEnd - playheadTime);
+
+        // Check if playhead is close enough to snap
+        if (distanceToEnd <= this.SNAP_PROXIMITY_MS) {
+          // Snap to the end of the closest item
+          startTime = itemEnd;
+        } else if (distanceToStart <= this.SNAP_PROXIMITY_MS) {
+          // Snap to the start of the closest item (place before it)
+          // But we need to check if there's space before it
+          const itemBefore = [...track.items]
+            .filter(item => item.startTime + item.duration <= closestItem.startTime)
+            .sort((a, b) => a.startTime - b.startTime)
+            .pop();
+
+          if (itemBefore) {
+            startTime = itemBefore.startTime + itemBefore.duration;
+          } else {
+            startTime = 0;
+          }
+        } else {
+          // Playhead is not close to any item, check if it overlaps with any item
+          const overlappingItem = track.items.find(item => {
+            const itemStart = item.startTime;
+            const itemEnd = item.startTime + item.duration;
+            return playheadTime >= itemStart && playheadTime < itemEnd;
+          });
+
+          if (overlappingItem) {
+            // Playhead overlaps with an item, place after the last item
+            const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+            const lastItem = sortedItems[sortedItems.length - 1];
+            startTime = lastItem.startTime + lastItem.duration;
+          } else {
+            // No overlap, place at playhead position
+            startTime = playheadTime;
+          }
+        }
+      } else {
+        // No items in track, place at playhead position
+        startTime = playheadTime;
+      }
+    } else {
+      // Empty track, place at playhead position
+      startTime = playheadTime;
     }
 
     const newItem: MediaItem = {
       id: `item-${Date.now()}`,
       type,
       startTime,
-      duration: type === MediaType.IMAGE ? 5000 : 3000,
+      duration: newItemDuration,
       trackId,
       name: `${type} placeholder`,
       isPlaceholder: true
