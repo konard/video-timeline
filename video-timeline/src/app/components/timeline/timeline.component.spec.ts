@@ -97,10 +97,10 @@ describe('TimelineComponent', () => {
   });
 
   it('should format time correctly', () => {
-    expect(component.formatTime(0)).toBe('0:00.000');
-    expect(component.formatTime(1000)).toBe('0:01.000');
-    expect(component.formatTime(60000)).toBe('1:00.000');
-    expect(component.formatTime(65500)).toBe('1:05.500');
+    expect(component.formatTime(0)).toBe('0:00.00');
+    expect(component.formatTime(1000)).toBe('0:01.00');
+    expect(component.formatTime(60000)).toBe('1:00.00');
+    expect(component.formatTime(65500)).toBe('1:05.50');
   });
 
   it('should calculate pixels per millisecond', () => {
