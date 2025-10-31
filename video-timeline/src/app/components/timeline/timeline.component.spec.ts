@@ -959,4 +959,288 @@ describe('TimelineComponent', () => {
       expect(result.duration).toBe(1000); // Original duration in infinite gap
     });
   });
+
+  describe('Placeholder Overlapping Bug (Issue #38)', () => {
+    it('should not allow overlaps when dragging into infinite gap', () => {
+      // Setup: Three items with gaps between them
+      // Item A: 0-2000ms
+      // Item B: 3000-5000ms
+      // Item C: 6000-8000ms
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 3000,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 6000,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+
+      // Drag Item C to 4500ms (which will trigger closest gap logic)
+      // The closest gap will be the infinite gap after item C (starts at 8000ms)
+      // Bug was: Math.max(0, 4500) = 4500, which overlaps with B (3000-5000)
+      // Fix: Math.max(gap.gapStart, 4500) = Math.max(8000, 4500) = 8000
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        4500,
+        track.items
+      );
+
+      // Should place at gap start (8000ms) to avoid overlap
+      expect(result.startTime).toBeGreaterThanOrEqual(5000); // After B ends
+      expect(result.startTime + result.duration).toBeGreaterThan(result.startTime); // Valid duration
+
+      // Verify no overlap with item B
+      const itemBEnd = 3000 + 2000; // 5000
+      expect(result.startTime).toBeGreaterThanOrEqual(itemBEnd);
+    });
+
+    it('should prevent overlap when dragging backwards through items', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 3000,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 6000,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+
+      // Drag through various positions and ensure no overlaps
+      const testPositions = [5500, 5000, 4500, 4000, 3500];
+
+      for (const pos of testPositions) {
+        const result = (component as any).getValidDragPosition(
+          draggedItem,
+          pos,
+          track.items
+        );
+
+        // Check no overlap with A (0-2000)
+        const itemAEnd = 0 + 2000;
+        const itemBStart = 3000;
+        const itemBEnd = 3000 + 2000;
+
+        const resultEnd = result.startTime + result.duration;
+
+        // Result should not overlap with A or B
+        const overlapsA = !(resultEnd <= 0 || result.startTime >= itemAEnd);
+        const overlapsB = !(resultEnd <= itemBStart || result.startTime >= itemBEnd);
+
+        expect(overlapsA).toBe(false);
+        expect(overlapsB).toBe(false);
+      }
+    });
+
+    it('should place item in closest valid gap when requested position overlaps', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 4000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Try to drag B to position 500 (overlaps A at 0-1000)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        500,
+        track.items
+      );
+
+      // Should be placed in valid gap (between A and C)
+      expect(result.startTime).toBeGreaterThanOrEqual(1000); // After A
+      expect(result.startTime + result.duration).toBeLessThanOrEqual(4000); // Before C
+    });
+
+    it('should handle infinite gap correctly when dragging past last item', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 2000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-b')!;
+
+      // Drag B to position far to the right (in infinite gap)
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        5000,
+        track.items
+      );
+
+      // Should place at requested position in infinite gap
+      expect(result.startTime).toBe(5000);
+      expect(result.duration).toBe(1000);
+
+      // Verify no overlap with A
+      expect(result.startTime).toBeGreaterThanOrEqual(1000);
+    });
+
+    it('should respect gap boundaries in all scenarios to prevent overlaps', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 3000,
+              duration: 2000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-c',
+              type: MediaType.VIDEO,
+              startTime: 7000,
+              duration: 1000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = track.items.find(i => i.id === 'item-c')!;
+
+      // Test multiple positions to ensure consistent behavior
+      const testCases = [
+        { pos: 6500, desc: 'Within C original position' },
+        { pos: 6000, desc: 'At C start' },
+        { pos: 5500, desc: 'Between B and C' },
+        { pos: 4500, desc: 'Overlaps B' },
+        { pos: 3500, desc: 'In middle of B' },
+        { pos: 1500, desc: 'Between A and B' },
+        { pos: 500, desc: 'Overlaps A' }
+      ];
+
+      for (const testCase of testCases) {
+        const result = (component as any).getValidDragPosition(
+          draggedItem,
+          testCase.pos,
+          track.items
+        );
+
+        // Verify no overlap with A (0-1000) or B (3000-5000)
+        const resultEnd = result.startTime + result.duration;
+
+        const overlapsA = !(resultEnd <= 0 || result.startTime >= 1000);
+        const overlapsB = !(resultEnd <= 3000 || result.startTime >= 5000);
+
+        expect(overlapsA).toBe(false);
+        expect(overlapsB).toBe(false);
+      }
+    });
+  });
 });

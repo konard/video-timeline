@@ -339,6 +339,7 @@ export class TimelineComponent {
    * adjust duration to fit instead of overlapping adjacent items
    * Fixes issue #36: When dragging overlaps an existing item, find the closest gap
    * instead of jumping to the end of the track
+   * Fixes issue #38: Prevent overlaps by ensuring items always start at or after gap start
    */
   private getValidDragPosition(
     item: MediaItem,
@@ -368,9 +369,10 @@ export class TimelineComponent {
     const gapSize = gap.gapEnd === Infinity ? Infinity : gap.gapEnd - gap.gapStart;
 
     // If gap is infinite (after last item), use original duration
+    // Fix for issue #38: Ensure item starts at or after gap start to prevent overlap
     if (gapSize === Infinity) {
       return {
-        startTime: Math.max(0, requestedStartTime),
+        startTime: Math.max(gap.gapStart, requestedStartTime),
         duration: item.duration
       };
     }
