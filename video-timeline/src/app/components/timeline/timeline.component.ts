@@ -633,24 +633,29 @@ export class TimelineComponent {
 
   onDocumentMouseMove(event: MouseEvent): void {
     if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      // Find the ruler element to calculate position (same as onRulerMouseDown)
+      // Fix for issue #50: Use the same calculation as onRulerMouseDown for consistency
+      // Find the ruler element directly to avoid coordinate system mismatches
       const rootElement = event.currentTarget as HTMLElement;
       const scrollContainer = rootElement.querySelector('.flex-1.flex.flex-col.overflow-y-auto.overflow-x-auto') as HTMLElement;
 
       if (scrollContainer) {
-        // Get the scroll container's bounding rect
-        const rect = scrollContainer.getBoundingClientRect();
-        const scrollLeft = scrollContainer.scrollLeft;
-        // Subtract TRACK_HEADER_WIDTH to account for the track header offset
-        // playheadVisualPosition includes TRACK_HEADER_WIDTH, so we need to subtract it
-        // to convert from visual coordinates to timeline coordinates
-        const x = event.clientX - rect.left + scrollLeft - this.TRACK_HEADER_WIDTH;
-        const newPosition = x / this.pixelsPerMillisecond();
+        // Find the ruler content element - this is what onRulerMouseDown uses
+        const rulerContent = scrollContainer.querySelector('.relative.h-full.min-w-full.cursor-pointer') as HTMLElement;
 
-        this.state.update(s => ({
-          ...s,
-          playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-        }));
+        if (rulerContent) {
+          // Use the ruler element's bounding rect (same as onRulerMouseDown)
+          const rect = rulerContent.getBoundingClientRect();
+          const scrollLeft = scrollContainer.scrollLeft;
+          // Same calculation as onRulerMouseDown - no need to subtract TRACK_HEADER_WIDTH
+          // because rect.left already accounts for it
+          const x = event.clientX - rect.left + scrollLeft;
+          const newPosition = x / this.pixelsPerMillisecond();
+
+          this.state.update(s => ({
+            ...s,
+            playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
+          }));
+        }
       }
     }
   }
