@@ -76,7 +76,7 @@
     </div>
 
     <!-- Tracks -->
-    <div class="flex-1">
+    <div class="flex-1" [style.width.px]="timelineWidth()">
     @for (track of state().tracks; track track.id) {
       <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
         <!-- Track header -->
@@ -111,7 +111,7 @@
         </div>
 
         <!-- Track timeline -->
-        <div class="relative flex-1" [style.width.px]="timelineWidth()">
+        <div class="relative flex-1">
           <div class="track relative bg-[#1a1a1a] min-h-[60px]"
                (mousemove)="onTrackMouseMove($event, track)">
 
