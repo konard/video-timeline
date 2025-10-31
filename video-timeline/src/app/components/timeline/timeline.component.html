@@ -111,9 +111,10 @@
         </div>
 
         <!-- Track timeline -->
-        <div class="track relative bg-[#1a1a1a] min-h-[60px]"
-             [style.width.px]="timelineWidth()"
-             (mousemove)="onTrackMouseMove($event, track)">
+        <div class="relative flex-1">
+          <div class="track relative bg-[#1a1a1a] min-h-[60px]"
+               [style.width.px]="timelineWidth()"
+               (mousemove)="onTrackMouseMove($event, track)">
 
           @for (item of track.items; track item.id) {
             <div class="media-item group absolute h-12 top-1.5 rounded border-2 border-transparent cursor-move flex items-center overflow-hidden transition-colors hover:border-white/30"
@@ -153,6 +154,7 @@
               </button>
             </div>
           }
+          </div>
         </div>
       </div>
     }
