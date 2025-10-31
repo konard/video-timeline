@@ -619,20 +619,19 @@ export class TimelineComponent {
       const scrollContainer = rootElement.querySelector('.flex-1.flex.flex-col.overflow-y-auto.overflow-x-auto') as HTMLElement;
 
       if (scrollContainer) {
-        // Find the actual ruler content element (the one with mousedown handler)
-        const rulerContent = scrollContainer.querySelector('.cursor-pointer') as HTMLElement;
+        // Get the scroll container's bounding rect
+        const rect = scrollContainer.getBoundingClientRect();
+        const scrollLeft = scrollContainer.scrollLeft;
+        // Subtract TRACK_HEADER_WIDTH to account for the track header offset
+        // playheadVisualPosition includes TRACK_HEADER_WIDTH, so we need to subtract it
+        // to convert from visual coordinates to timeline coordinates
+        const x = event.clientX - rect.left + scrollLeft - this.TRACK_HEADER_WIDTH;
+        const newPosition = x / this.pixelsPerMillisecond();
 
-        if (rulerContent) {
-          const rect = rulerContent.getBoundingClientRect();
-          const scrollLeft = scrollContainer.scrollLeft;
-          const x = event.clientX - rect.left + scrollLeft;
-          const newPosition = x / this.pixelsPerMillisecond();
-
-          this.state.update(s => ({
-            ...s,
-            playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-          }));
-        }
+        this.state.update(s => ({
+          ...s,
+          playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
+        }));
       }
     }
   }
