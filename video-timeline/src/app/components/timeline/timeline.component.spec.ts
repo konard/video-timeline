@@ -512,4 +512,217 @@ describe('TimelineComponent', () => {
       expect(items[2].startTime).toBe(3000);
     });
   });
+
+  describe('Gap Fitting (Issue #33)', () => {
+    it('should adjust duration when dragging into gap smaller than item duration', () => {
+      // Setup: Create a track with two items and a small gap between them
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 5000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 6000,
+              duration: 5000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      // Simulate dragging an item with 3000ms duration into 1000ms gap
+      const draggedItem = {
+        id: 'item-c',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 3000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      // Access the private method using bracket notation for testing
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        5500, // Drop in the middle of the gap (5000-6000)
+        track.items
+      );
+
+      // Should fit in the gap with adjusted duration
+      expect(result.startTime).toBe(5000); // Start of gap
+      expect(result.duration).toBe(1000); // Gap size
+    });
+
+    it('should preserve duration when item fits in gap', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 3000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 8000,
+              duration: 3000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = {
+        id: 'item-c',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 3000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      // Gap is 5000ms (3000-8000), item is 3000ms - should fit
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        4500,
+        track.items
+      );
+
+      expect(result.duration).toBe(3000); // Original duration preserved
+      expect(result.startTime).toBe(4500); // Requested position
+    });
+
+    it('should respect minimum duration when gap is very small', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 5000,
+              trackId: track.id,
+              isPlaceholder: true
+            },
+            {
+              id: 'item-b',
+              type: MediaType.VIDEO,
+              startTime: 5050,
+              duration: 5000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = {
+        id: 'item-c',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 3000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      // Gap is only 50ms, but minimum duration is 100ms
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        5025,
+        track.items
+      );
+
+      expect(result.startTime).toBe(5000);
+      expect(result.duration).toBe(100); // Minimum duration
+    });
+
+    it('should use original duration when dropping in empty track', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: []
+        } : t)
+      }));
+
+      const draggedItem = {
+        id: 'item-c',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 3000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        5000,
+        []
+      );
+
+      expect(result.startTime).toBe(5000);
+      expect(result.duration).toBe(3000); // Original duration
+    });
+
+    it('should use original duration when dropping after last item', () => {
+      const track = component.state().tracks[0];
+      component.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t => t.id === track.id ? {
+          ...t,
+          items: [
+            {
+              id: 'item-a',
+              type: MediaType.VIDEO,
+              startTime: 0,
+              duration: 5000,
+              trackId: track.id,
+              isPlaceholder: true
+            }
+          ]
+        } : t)
+      }));
+
+      const draggedItem = {
+        id: 'item-c',
+        type: MediaType.VIDEO,
+        startTime: 0,
+        duration: 3000,
+        trackId: '2',
+        isPlaceholder: true
+      };
+
+      const result = (component as any).getValidDragPosition(
+        draggedItem,
+        8000,
+        track.items
+      );
+
+      expect(result.startTime).toBe(8000);
+      expect(result.duration).toBe(3000); // Original duration (infinite gap)
+    });
+  });
 });

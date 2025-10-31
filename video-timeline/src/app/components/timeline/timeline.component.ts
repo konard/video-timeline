@@ -16,6 +16,7 @@ export class TimelineComponent {
   private readonly ZOOM_STEP = 20;
   private readonly TRACK_HEADER_WIDTH = 150; // Width of track header in pixels
   private readonly SNAP_PROXIMITY_MS = 500; // Snap to item if playhead is within 500ms
+  private readonly MIN_ITEM_DURATION = 100; // Minimum item duration in milliseconds
 
   // Timeline state
   readonly state = signal<TimelineState>({
@@ -199,25 +200,122 @@ export class TimelineComponent {
     return closestItem;
   }
 
-  private getValidDragPosition(item: MediaItem, requestedStartTime: number, trackItems: MediaItem[]): number {
-    const otherItems = trackItems.filter(i => i.id !== item.id);
-    const testItem = { ...item, startTime: requestedStartTime };
+  /**
+   * Finds the gap where the requested position falls and returns gap boundaries
+   * Returns null if the position doesn't fall in a valid gap
+   */
+  private findGapForPosition(
+    requestedStartTime: number,
+    itemDuration: number,
+    trackItems: MediaItem[]
+  ): { gapStart: number; gapEnd: number; leftItem: MediaItem | null; rightItem: MediaItem | null } | null {
+    const sortedItems = [...trackItems].sort((a, b) => a.startTime - b.startTime);
 
-    // Check for overlaps with each item
-    for (const other of otherItems) {
-      if (this.itemsOverlap(testItem, other)) {
-        // Snap to nearest non-overlapping position
-        if (requestedStartTime < other.startTime) {
-          // Moving left, snap to left of other item
-          return Math.max(0, other.startTime - item.duration);
-        } else {
-          // Moving right, snap to right of other item
-          return other.startTime + other.duration;
-        }
+    // Empty track - infinite gap
+    if (sortedItems.length === 0) {
+      return { gapStart: 0, gapEnd: Infinity, leftItem: null, rightItem: null };
+    }
+
+    // Check gap before first item
+    if (requestedStartTime < sortedItems[0].startTime) {
+      return {
+        gapStart: 0,
+        gapEnd: sortedItems[0].startTime,
+        leftItem: null,
+        rightItem: sortedItems[0]
+      };
+    }
+
+    // Check gaps between items
+    for (let i = 0; i < sortedItems.length - 1; i++) {
+      const leftItem = sortedItems[i];
+      const rightItem = sortedItems[i + 1];
+      const gapStart = leftItem.startTime + leftItem.duration;
+      const gapEnd = rightItem.startTime;
+
+      // Check if requested position falls within this gap
+      if (requestedStartTime >= gapStart && requestedStartTime < gapEnd) {
+        return { gapStart, gapEnd, leftItem, rightItem };
       }
     }
 
-    return Math.max(0, requestedStartTime);
+    // Check gap after last item
+    const lastItem = sortedItems[sortedItems.length - 1];
+    if (requestedStartTime >= lastItem.startTime + lastItem.duration) {
+      return {
+        gapStart: lastItem.startTime + lastItem.duration,
+        gapEnd: Infinity,
+        leftItem: lastItem,
+        rightItem: null
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Calculate valid drag position with automatic duration adjustment to fit gaps
+   * Fixes issue #33: When dragging into a gap smaller than item duration,
+   * adjust duration to fit instead of overlapping adjacent items
+   */
+  private getValidDragPosition(
+    item: MediaItem,
+    requestedStartTime: number,
+    trackItems: MediaItem[]
+  ): { startTime: number; duration: number } {
+    const otherItems = trackItems.filter(i => i.id !== item.id);
+
+    // Empty track - place at requested position with original duration
+    if (otherItems.length === 0) {
+      return {
+        startTime: Math.max(0, requestedStartTime),
+        duration: item.duration
+      };
+    }
+
+    // Find which gap the requested position falls into
+    const gap = this.findGapForPosition(requestedStartTime, item.duration, otherItems);
+
+    if (!gap) {
+      // Position doesn't fall in a valid gap (shouldn't happen)
+      // Fallback: place at end of track
+      const sortedItems = [...otherItems].sort((a, b) => a.startTime - b.startTime);
+      const lastItem = sortedItems[sortedItems.length - 1];
+      return {
+        startTime: lastItem.startTime + lastItem.duration,
+        duration: item.duration
+      };
+    }
+
+    const gapSize = gap.gapEnd === Infinity ? Infinity : gap.gapEnd - gap.gapStart;
+
+    // If gap is infinite (after last item), use original duration
+    if (gapSize === Infinity) {
+      return {
+        startTime: Math.max(0, requestedStartTime),
+        duration: item.duration
+      };
+    }
+
+    // If item fits completely in the gap, use original duration
+    if (item.duration <= gapSize) {
+      // Make sure the item doesn't go past the gap end
+      const maxStartTime = gap.gapEnd - item.duration;
+      const finalStartTime = Math.max(gap.gapStart, Math.min(requestedStartTime, maxStartTime));
+      return {
+        startTime: finalStartTime,
+        duration: item.duration
+      };
+    }
+
+    // Item doesn't fit - adjust duration to fit the gap
+    // Respect minimum duration constraint
+    const adjustedDuration = Math.max(this.MIN_ITEM_DURATION, gapSize);
+
+    return {
+      startTime: gap.gapStart,
+      duration: adjustedDuration
+    };
   }
 
   private getResizeBounds(item: MediaItem, trackItems: MediaItem[], edge: 'left' | 'right'): { minTime: number; maxTime: number } {
@@ -303,8 +401,8 @@ export class TimelineComponent {
           // Get all items except the dragged one for collision detection
           const otherItems = t.items.filter(i => i.id !== this.draggedItem!.id);
 
-          // Calculate valid position considering collisions
-          const validStartTime = this.getValidDragPosition(
+          // Calculate valid position and duration considering collisions and gap fitting
+          const validPosition = this.getValidDragPosition(
             this.draggedItem!,
             requestedStartTime,
             otherItems
@@ -314,22 +412,32 @@ export class TimelineComponent {
           const itemExists = t.items.some(i => i.id === this.draggedItem!.id);
 
           if (itemExists) {
-            // Update position in current track
+            // Update position and duration in current track
             return {
               ...t,
               items: t.items.map(i =>
                 i.id === this.draggedItem!.id
-                  ? { ...i, startTime: validStartTime, trackId: track.id }
+                  ? {
+                      ...i,
+                      startTime: validPosition.startTime,
+                      duration: validPosition.duration,
+                      trackId: track.id
+                    }
                   : i
               )
             };
           } else {
-            // Add to new track
+            // Add to new track with adjusted position and duration
             return {
               ...t,
               items: [
                 ...otherItems,
-                { ...this.draggedItem!, startTime: validStartTime, trackId: track.id }
+                {
+                  ...this.draggedItem!,
+                  startTime: validPosition.startTime,
+                  duration: validPosition.duration,
+                  trackId: track.id
+                }
               ]
             };
           }
