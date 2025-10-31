@@ -44,19 +44,16 @@
     <!-- Timeline Ruler -->
     <div class="flex border-b border-[#3a3a3a] flex-shrink-0">
       <!-- Control area to align with track headers -->
-      <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a] flex flex-col justify-center items-center gap-2 p-2">
-        <button (click)="addTrack()" class="px-2 py-1 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700 flex items-center gap-1.5">
+      <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a] flex justify-center items-center gap-1 p-2">
+        <button (click)="addTrack()" class="px-2 py-1 bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-blue-700" title="Добавить трек">
           <i class="bi bi-plus-circle"></i>
-          <span class="text-xs">Track</span>
         </button>
-        <div class="flex gap-1 items-center">
-          <button (click)="zoomOut()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]">
-            <i class="bi bi-zoom-out"></i>
-          </button>
-          <button (click)="zoomIn()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]">
-            <i class="bi bi-zoom-in"></i>
-          </button>
-        </div>
+        <button (click)="zoomOut()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Уменьшить масштаб">
+          <i class="bi bi-zoom-out"></i>
+        </button>
+        <button (click)="zoomIn()" class="px-2 py-1 bg-[#3a3a3a] text-white border-none rounded cursor-pointer text-sm transition-colors hover:bg-[#4a4a4a]" title="Увеличить масштаб">
+          <i class="bi bi-zoom-in"></i>
+        </button>
       </div>
       <!-- Ruler content -->
       <div class="relative h-10 bg-[#2a2a2a] flex-1">
@@ -78,25 +75,25 @@
     @for (track of state().tracks; track track.id) {
       <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
         <!-- Track header -->
-        <div class="flex flex-col justify-between min-w-[150px] p-2 bg-[#252525] border-r border-[#3a3a3a]">
-          <span class="text-sm font-medium mb-1">{{ getTrackNumber(track.name) }}</span>
-          <div class="flex gap-1 flex-wrap">
+        <div class="flex items-center justify-between min-w-[150px] p-2 bg-[#252525] border-r border-[#3a3a3a]">
+          <span class="text-sm font-medium">{{ getTrackNumber(track.name) }}</span>
+          <div class="flex gap-1">
             <button
               (click)="addMediaItem(MediaType.VIDEO, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add video placeholder">
+              title="Добавить видео">
               <i class="bi bi-camera-video"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.AUDIO, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add audio placeholder">
+              title="Добавить аудио">
               <i class="bi bi-volume-up"></i>
             </button>
             <button
               (click)="addMediaItem(MediaType.IMAGE, track.id)"
               class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add image placeholder">
+              title="Добавить изображение">
               <i class="bi bi-image"></i>
             </button>
             <button
