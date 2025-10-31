@@ -5,13 +5,3 @@ Your forked repository: konard/video-timeline
 Original repository (upstream): andchir/video-timeline
 
 Proceed.
-
----
-
-Issue to solve: undefined
-Your prepared branch: issue-38-b5dfbb7d
-Your prepared working directory: /tmp/gh-issue-solver-1761903649660
-Your forked repository: konard/video-timeline
-Original repository (upstream): andchir/video-timeline
-
-Proceed.
