@@ -49,6 +49,7 @@ export class TimelineComponent {
   private draggedItemOriginalTrackId: string | null = null;
   private dragOffsetTime: number = 0; // Offset in milliseconds from item start to cursor position
   private isDraggingPlayhead = false;
+  private isDraggingFromRuler = false;
   private resizingItem: { item: MediaItem; edge: 'left' | 'right' } | null = null;
 
   // Video preview state
@@ -134,7 +135,11 @@ export class TimelineComponent {
   }
 
   // Playhead controls
-  onRulerClick(event: MouseEvent): void {
+  onRulerMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+    this.isDraggingFromRuler = true;
+
+    // Immediately update position on mouse down
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     // Get the scrollable container to account for scroll offset
@@ -383,11 +388,12 @@ export class TimelineComponent {
     this.draggedItemOriginalTrackId = null;
     this.dragOffsetTime = 0;
     this.isDraggingPlayhead = false;
+    this.isDraggingFromRuler = false;
     this.resizingItem = null;
   }
 
   onDocumentMouseMove(event: MouseEvent): void {
-    if (this.isDraggingPlayhead) {
+    if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
       // Find the ruler element within the timeline content wrapper
       const ruler = event.currentTarget as HTMLElement;
       const contentWrapper = ruler.querySelector('.flex-1.flex.flex-col') as HTMLElement;
