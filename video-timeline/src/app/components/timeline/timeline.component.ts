@@ -88,39 +88,6 @@ export class TimelineComponent {
   private mediaLibraryTargetTrackId: string | null = null;
 
   constructor() {
-    // Add some demo items
-    this.addDemoItems();
-  }
-
-  private addDemoItems(): void {
-    const currentState = this.state();
-    const updatedTracks = [...currentState.tracks];
-
-    // Add demo video item
-    updatedTracks[0].items.push({
-      id: 'demo-video-1',
-      type: MediaType.VIDEO,
-      startTime: 0,
-      duration: 5000,
-      maxDuration: 10000, // 10 seconds max
-      trackId: '1',
-      name: 'Video placeholder',
-      isPlaceholder: true
-    });
-
-    // Add demo audio item
-    updatedTracks[1].items.push({
-      id: 'demo-audio-1',
-      type: MediaType.AUDIO,
-      startTime: 2000,
-      duration: 8000,
-      maxDuration: 15000, // 15 seconds max
-      trackId: '2',
-      name: 'Audio placeholder',
-      isPlaceholder: true
-    });
-
-    this.state.update(s => ({ ...s, tracks: updatedTracks }));
   }
 
   // Track management
