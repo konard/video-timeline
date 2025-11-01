@@ -1,11 +1,12 @@
 import { Component, signal, computed, effect, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MediaType, MediaItem, Track, TimelineState } from '../../models/timeline.models';
+import { MediaLibraryComponent, MediaLibraryItem } from '../media-library/media-library.component';
 
 @Component({
   selector: 'app-timeline',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MediaLibraryComponent],
   templateUrl: './timeline.component.html',
   styleUrl: './timeline.component.css'
 })
@@ -76,6 +77,10 @@ export class TimelineComponent {
   // Duration editor state
   readonly showDurationEditor = signal<boolean>(false);
   private editedDuration: number = 60; // Duration in seconds
+
+  // Media library state
+  readonly showMediaLibrary = signal<boolean>(false);
+  private mediaLibraryTargetTrackId: string | null = null;
 
   constructor() {
     // Add some demo items
@@ -950,5 +955,175 @@ export class TimelineComponent {
       playheadPosition: Math.min(s.playheadPosition, newDurationMs)
     }));
     this.closeDurationEditor();
+  }
+
+  // Media library methods
+  openMediaLibrary(trackId: string): void {
+    this.mediaLibraryTargetTrackId = trackId;
+    this.showMediaLibrary.set(true);
+  }
+
+  closeMediaLibrary(): void {
+    this.showMediaLibrary.set(false);
+    this.mediaLibraryTargetTrackId = null;
+  }
+
+  onMediaSelected(media: MediaLibraryItem): void {
+    if (!this.mediaLibraryTargetTrackId) return;
+
+    const currentState = this.state();
+    const track = currentState.tracks.find(t => t.id === this.mediaLibraryTargetTrackId);
+
+    if (!track) return;
+
+    const playheadTime = currentState.playheadPosition;
+    const totalDuration = currentState.totalDuration;
+
+    // Determine the start time for the new item
+    let startTime = 0;
+
+    if (track.items.length > 0) {
+      // Find the closest item to the playhead
+      const closestItem = this.findClosestItem(track.items, playheadTime);
+
+      if (closestItem) {
+        const itemEnd = closestItem.startTime + closestItem.duration;
+        const distanceToStart = Math.abs(closestItem.startTime - playheadTime);
+        const distanceToEnd = Math.abs(itemEnd - playheadTime);
+
+        // Check if playhead is close enough to snap
+        if (distanceToEnd <= this.SNAP_PROXIMITY_MS) {
+          // Snap to the end of the closest item
+          startTime = itemEnd;
+        } else if (distanceToStart <= this.SNAP_PROXIMITY_MS) {
+          // Snap to the start of the closest item (place before it)
+          // But we need to check if there's space before it
+          const itemBefore = [...track.items]
+            .filter(item => item.startTime + item.duration <= closestItem.startTime)
+            .sort((a, b) => a.startTime - b.startTime)
+            .pop();
+
+          if (itemBefore) {
+            startTime = itemBefore.startTime + itemBefore.duration;
+          } else if (closestItem.startTime === 0) {
+            // Can't place before an item at position 0, place after the last item instead
+            const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+            const lastItem = sortedItems[sortedItems.length - 1];
+            startTime = lastItem.startTime + lastItem.duration;
+          } else {
+            startTime = 0;
+          }
+        } else {
+          // Playhead is not close to any item, check if it overlaps with any item
+          const overlappingItem = track.items.find(item => {
+            const itemStart = item.startTime;
+            const itemEnd = item.startTime + item.duration;
+            return playheadTime >= itemStart && playheadTime < itemEnd;
+          });
+
+          if (overlappingItem) {
+            // Playhead overlaps with an item, place after the last item
+            const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+            const lastItem = sortedItems[sortedItems.length - 1];
+            startTime = lastItem.startTime + lastItem.duration;
+          } else {
+            // No overlap, place at playhead position
+            startTime = playheadTime;
+          }
+        }
+      } else {
+        // No items in track, place at playhead position
+        startTime = playheadTime;
+      }
+    } else {
+      // Empty track, place at playhead position
+      startTime = playheadTime;
+    }
+
+    // Ensure item doesn't exceed totalDuration
+    const maxAllowedDuration = totalDuration - startTime;
+    const finalDuration = Math.min(media.duration, maxAllowedDuration);
+
+    // Verify that the new item doesn't overlap with any existing items
+    const testItem: MediaItem = {
+      id: 'temp',
+      type: media.type,
+      startTime,
+      duration: finalDuration,
+      trackId: this.mediaLibraryTargetTrackId,
+      name: '',
+      isPlaceholder: false
+    };
+
+    // Check if the calculated position would cause overlap
+    const hasOverlap = track.items.some(item => this.itemsOverlap(testItem, item));
+
+    if (hasOverlap) {
+      // Find a non-overlapping position: place after the last item
+      const sortedItems = [...track.items].sort((a, b) => a.startTime - b.startTime);
+      const lastItem = sortedItems[sortedItems.length - 1];
+      startTime = lastItem.startTime + lastItem.duration;
+
+      // Recalculate duration limit after adjusting position
+      const newMaxAllowedDuration = totalDuration - startTime;
+      const adjustedDuration = Math.min(media.duration, newMaxAllowedDuration);
+
+      // Create the final non-overlapping item
+      const newItem: MediaItem = {
+        id: `item-${Date.now()}`,
+        type: media.type,
+        startTime,
+        duration: adjustedDuration,
+        trackId: this.mediaLibraryTargetTrackId,
+        name: media.name,
+        isPlaceholder: false
+      };
+
+      // Set maxDuration for audio and video
+      if (media.type === MediaType.VIDEO) {
+        newItem.maxDuration = Math.min(media.duration, newMaxAllowedDuration);
+      } else if (media.type === MediaType.AUDIO) {
+        newItem.maxDuration = Math.min(media.duration, newMaxAllowedDuration);
+      }
+
+      this.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t =>
+          t.id === this.mediaLibraryTargetTrackId
+            ? { ...t, items: [...t.items, newItem] }
+            : t
+        )
+      }));
+    } else {
+      // No overlap, use the calculated position
+      const newItem: MediaItem = {
+        id: `item-${Date.now()}`,
+        type: media.type,
+        startTime,
+        duration: finalDuration,
+        trackId: this.mediaLibraryTargetTrackId,
+        name: media.name,
+        isPlaceholder: false
+      };
+
+      // Set maxDuration for audio and video
+      if (media.type === MediaType.VIDEO) {
+        newItem.maxDuration = Math.min(media.duration, maxAllowedDuration);
+      } else if (media.type === MediaType.AUDIO) {
+        newItem.maxDuration = Math.min(media.duration, maxAllowedDuration);
+      }
+
+      this.state.update(s => ({
+        ...s,
+        tracks: s.tracks.map(t =>
+          t.id === this.mediaLibraryTargetTrackId
+            ? { ...t, items: [...t.items, newItem] }
+            : t
+        )
+      }));
+    }
+
+    // Close the media library after selection
+    this.closeMediaLibrary();
   }
 }
