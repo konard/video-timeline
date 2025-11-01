@@ -147,12 +147,12 @@
     }
     </div>
 
-    <!-- Playhead - positioned absolutely over the entire content area -->
-    <div class="absolute top-0 bottom-0 pointer-events-none z-[1000]"
+    <!-- Playhead - sticky positioned to stay visible during vertical scroll -->
+    <div class="sticky top-0 pointer-events-none z-[5] h-screen"
          [style.left.px]="playheadVisualPosition()"
          (mousedown)="onPlayheadMouseDown($event)">
-      <div class="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto"></div>
-      <div class="absolute top-3 left-0 w-0.5 h-full bg-red-500 pointer-events-none"></div>
+      <div class="absolute -left-1.5 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto" style="top: 40px;"></div>
+      <div class="absolute left-0 w-0.5 bg-red-500 pointer-events-none" style="top: 43px; height: calc(100% - 43px);"></div>
     </div>
   </div>
 
