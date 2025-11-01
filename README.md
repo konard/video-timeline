@@ -7,7 +7,7 @@ A professional video timeline editor built with Angular 20.3, featuring drag-and
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
-- **Node.js** (version 18.x or higher recommended)
+- **Node.js** (version 20.x or higher recommended)
 - **npm** (comes with Node.js)
 - **Angular CLI** (optional, as the project includes `ng` via npm scripts)
 
