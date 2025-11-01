@@ -55,6 +55,11 @@ export class TimelineComponent {
     return maxEndTime * this.pixelsPerMillisecond();
   });
 
+  readonly timelineLineHeight = computed(() => {
+    const state = this.state();
+    return state.tracks.length * 60 + 32;
+  });
+
   readonly playheadPosition = computed(() => {
     return this.state().playheadPosition * this.pixelsPerMillisecond();
   });
