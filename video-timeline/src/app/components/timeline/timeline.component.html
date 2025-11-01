@@ -46,7 +46,7 @@
   <!-- Timeline content wrapper with unified horizontal scrolling -->
   <div class="flex-1 flex flex-col overflow-y-auto overflow-x-auto relative">
     <!-- Timeline Ruler -->
-    <div class="flex border-b border-[#3a3a3a] flex-shrink-0">
+    <div class="flex border-b border-[#3a3a3a] flex-shrink-0 sticky top-0 z-10 bg-[#2a2a2a]">
       <!-- Control area to align with track headers -->
       <div class="min-w-[150px] bg-[#252525] border-r border-[#3a3a3a] flex justify-center items-center gap-1 p-2">
         <button (click)="addTrack()" class="px-2 py-1 text-white border-none rounded cursor-pointer text-sm opacity-70 transition-opacity hover:opacity-100" title="Add track">
