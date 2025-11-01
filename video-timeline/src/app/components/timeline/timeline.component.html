@@ -84,22 +84,10 @@
           <span class="text-sm font-medium">{{ getTrackNumber(track.name) }}</span>
           <div class="flex gap-1">
             <button
-              (click)="addMediaItem(MediaType.VIDEO, track.id)"
-              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add video">
-              <i class="bi bi-camera-video"></i>
-            </button>
-            <button
-              (click)="addMediaItem(MediaType.AUDIO, track.id)"
-              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add audio">
-              <i class="bi bi-volume-up"></i>
-            </button>
-            <button
-              (click)="addMediaItem(MediaType.IMAGE, track.id)"
-              class="p-1 text-base text-white border-none bg-transparent cursor-pointer transition-opacity hover:opacity-70"
-              title="Add image">
-              <i class="bi bi-image"></i>
+              (click)="openMediaLibrary(track.id)"
+              class="p-1 text-sm text-white border-none bg-blue-600 rounded cursor-pointer transition-opacity hover:opacity-80 px-2"
+              title="Add media">
+              <i class="bi bi-plus-circle"></i> Add media
             </button>
             <button
               (click)="removeTrack(track.id)"
@@ -202,5 +190,13 @@
         </div>
       </div>
     </div>
+  }
+
+  <!-- Media Library Modal -->
+  @if (showMediaLibrary()) {
+    <app-media-library
+      (closeModal)="closeMediaLibrary()"
+      (selectMedia)="onMediaSelected($event)">
+    </app-media-library>
   }
 </div>
