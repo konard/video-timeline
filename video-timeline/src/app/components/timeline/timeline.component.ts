@@ -217,12 +217,20 @@ export class TimelineComponent {
           // Get all items except the dragged one for collision detection
           const otherItems = t.items.filter(i => i.id !== this.draggedItem!.id);
 
-          // Calculate valid position and duration considering collisions and gap fitting
+          // Fix for issue #81: Find snap targets (playhead and items on all tracks)
+          const snapTargets = this.dragDropService.findSnapTargets(
+            this.draggedItem!.id,
+            s.tracks,
+            s.playheadPosition
+          );
+
+          // Calculate valid position and duration considering collisions, gap fitting, and snapping
           const validPosition = this.dragDropService.getValidDragPosition(
             this.draggedItem!,
             requestedStartTime,
             otherItems,
-            s.totalDuration
+            s.totalDuration,
+            snapTargets
           );
 
           // Check if item already exists in this track
