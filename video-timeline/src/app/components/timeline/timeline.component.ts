@@ -292,6 +292,13 @@ export class TimelineComponent {
     const timeAtCursor = x / this.pixelsPerMillisecond();
 
     this.state.update(s => {
+      // Fix for issue #87: Find snap targets for resize operations
+      const snapTargets = this.dragDropService.findSnapTargets(
+        this.resizingItem!.item.id,
+        s.tracks,
+        s.playheadPosition
+      );
+
       const updatedTracks = s.tracks.map(t => {
         if (t.id === track.id) {
           // Get resize bounds considering adjacent items
@@ -307,11 +314,25 @@ export class TimelineComponent {
             items: t.items.map(i => {
               if (i.id === this.resizingItem!.item.id) {
                 if (this.resizingItem!.edge === 'left') {
-                  // Constrain the new start time within bounds
-                  const newStartTime = Math.max(
+                  // Fix for issue #87: Apply snapping to left edge (start time)
+                  let newStartTime = Math.max(
                     bounds.minTime,
                     Math.min(timeAtCursor, bounds.maxTime)
                   );
+
+                  // Apply snapping if within snap distance
+                  let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
+                  for (const target of snapTargets) {
+                    const distance = Math.abs(newStartTime - target);
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      // Only snap if within bounds
+                      if (target >= bounds.minTime && target <= bounds.maxTime) {
+                        newStartTime = target;
+                      }
+                    }
+                  }
+
                   const newDuration = i.duration + (i.startTime - newStartTime);
 
                   // Limit duration by maxDuration if specified
@@ -324,11 +345,25 @@ export class TimelineComponent {
 
                   return { ...i, startTime: adjustedStartTime, duration: limitedDuration };
                 } else {
-                  // Constrain the new end time within bounds
-                  const newEndTime = Math.max(
+                  // Fix for issue #87: Apply snapping to right edge (end time)
+                  let newEndTime = Math.max(
                     bounds.minTime,
                     Math.min(timeAtCursor, bounds.maxTime)
                   );
+
+                  // Apply snapping if within snap distance
+                  let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
+                  for (const target of snapTargets) {
+                    const distance = Math.abs(newEndTime - target);
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      // Only snap if within bounds
+                      if (target >= bounds.minTime && target <= bounds.maxTime) {
+                        newEndTime = target;
+                      }
+                    }
+                  }
+
                   const newDuration = newEndTime - i.startTime;
 
                   // Limit duration by maxDuration if specified
