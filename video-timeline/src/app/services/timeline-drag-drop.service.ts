@@ -353,7 +353,18 @@ export class TimelineDragDropService {
         .pop();
 
       const minTime = leftItem ? leftItem.startTime + leftItem.duration : 0;
-      const maxTime = item.startTime + item.duration - 100; // Keep minimum duration
+
+      // Calculate maxTime considering both minimum duration and maxDuration constraint
+      const maxTimeForMinDuration = item.startTime + item.duration - 100; // Keep minimum duration
+
+      // Fix for issue #89: Consider maxDuration when calculating left edge bounds
+      // When dragging left edge, the maximum extent is limited by how far we can extend
+      // the clip without exceeding maxDuration
+      const maxTimeBasedOnMaxDuration = item.maxDuration
+        ? (item.startTime + item.duration) - item.maxDuration
+        : -Infinity;
+
+      const maxTime = Math.max(maxTimeForMinDuration, maxTimeBasedOnMaxDuration);
 
       return { minTime, maxTime };
     } else {
@@ -362,8 +373,20 @@ export class TimelineDragDropService {
         .find(i => i.startTime >= item.startTime + item.duration);
 
       const minTime = item.startTime + 100; // Minimum duration
+
+      // Fix for issue #89: Consider maxDuration when calculating right edge bounds
+      // The maximum time should account for the item's maxDuration relative to its startTime
+      const maxTimeBasedOnMaxDuration = item.maxDuration
+        ? item.startTime + item.maxDuration
+        : Infinity;
+
       // Fix for issue #48: Respect totalDuration limit when resizing right edge
-      const maxTime = rightItem ? Math.min(rightItem.startTime, totalDuration) : totalDuration;
+      // Combine all constraints: adjacent item, totalDuration, and maxDuration
+      const maxTime = Math.min(
+        rightItem ? rightItem.startTime : totalDuration,
+        totalDuration,
+        maxTimeBasedOnMaxDuration
+      );
 
       return { minTime, maxTime };
     }
