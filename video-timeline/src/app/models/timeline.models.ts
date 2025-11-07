@@ -7,8 +7,9 @@ export enum MediaType {
 export interface MediaItem {
   id: string;
   type: MediaType;
-  startTime: number; // milliseconds
-  duration: number; // milliseconds
+  startTime: number; // milliseconds - position on timeline
+  duration: number; // milliseconds - duration shown on timeline
+  mediaStartTime?: number; // milliseconds - offset into source media (default: 0)
   maxDuration?: number; // milliseconds - maximum duration for audio/video placeholders
   trackId: string;
   name?: string;

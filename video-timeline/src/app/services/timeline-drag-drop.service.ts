@@ -354,17 +354,15 @@ export class TimelineDragDropService {
 
       const minTime = leftItem ? leftItem.startTime + leftItem.duration : 0;
 
-      // Calculate maxTime considering both minimum duration and maxDuration constraint
+      // Calculate maxTime considering minimum duration
       const maxTimeForMinDuration = item.startTime + item.duration - 100; // Keep minimum duration
 
-      // Fix for issue #89: Consider maxDuration when calculating left edge bounds
-      // When dragging left edge, the maximum extent is limited by how far we can extend
-      // the clip without exceeding maxDuration
-      const maxTimeBasedOnMaxDuration = item.maxDuration
-        ? (item.startTime + item.duration) - item.maxDuration
-        : -Infinity;
+      // Fix for issue #89: Consider mediaStartTime when calculating left edge bounds
+      // We can only extend left as far as there is available media before the current trim point
+      const currentMediaStartTime = item.mediaStartTime || 0;
+      const maxTimeBasedOnMediaStart = item.startTime - currentMediaStartTime;
 
-      const maxTime = Math.max(maxTimeForMinDuration, maxTimeBasedOnMaxDuration);
+      const maxTime = Math.max(maxTimeForMinDuration, maxTimeBasedOnMediaStart);
 
       return { minTime, maxTime };
     } else {
@@ -374,18 +372,23 @@ export class TimelineDragDropService {
 
       const minTime = item.startTime + 100; // Minimum duration
 
-      // Fix for issue #89: Consider maxDuration when calculating right edge bounds
-      // The maximum time should account for the item's maxDuration relative to its startTime
-      const maxTimeBasedOnMaxDuration = item.maxDuration
-        ? item.startTime + item.maxDuration
+      // Fix for issue #89: Consider mediaStartTime when calculating right edge bounds
+      // The remaining available media duration is maxDuration minus the current mediaStartTime
+      const currentMediaStartTime = item.mediaStartTime || 0;
+      const remainingMediaDuration = item.maxDuration
+        ? item.maxDuration - currentMediaStartTime
+        : Infinity;
+
+      const maxTimeBasedOnRemainingMedia = item.maxDuration
+        ? item.startTime + remainingMediaDuration
         : Infinity;
 
       // Fix for issue #48: Respect totalDuration limit when resizing right edge
-      // Combine all constraints: adjacent item, totalDuration, and maxDuration
+      // Combine all constraints: adjacent item, totalDuration, and remaining media duration
       const maxTime = Math.min(
         rightItem ? rightItem.startTime : totalDuration,
         totalDuration,
-        maxTimeBasedOnMaxDuration
+        maxTimeBasedOnRemainingMedia
       );
 
       return { minTime, maxTime };
