@@ -84,11 +84,11 @@
 
     <!-- Tracks -->
     <div class="flex-1" [style.width.px]="timelineWidth() + TRACK_HEADER_WIDTH">
-    @for (track of state().tracks; track track.id) {
+    @for (track of state().tracks; track track.id; let i = $index) {
       <div class="flex border-b border-[#3a3a3a] min-h-[60px]">
         <!-- Track header -->
         <div class="flex items-center justify-between min-w-[150px] p-2 bg-[#252525] border-r border-[#3a3a3a]">
-          <span class="text-sm font-medium">{{ getTrackNumber(track.name) }}</span>
+          <span class="text-sm font-medium">Track {{ i + 1 }}</span>
           <div class="flex gap-1">
             <button
               (click)="openMediaLibrary(track.id)"
