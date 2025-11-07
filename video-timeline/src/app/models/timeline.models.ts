@@ -28,4 +28,5 @@ export interface TimelineState {
   playheadPosition: number; // milliseconds
   zoomLevel: number; // pixels per millisecond
   totalDuration: number; // milliseconds
+  selectedItemId: string | null; // ID of selected media item
 }

@@ -19,6 +19,13 @@
   display: flex !important;
 }
 
+/* Selected media item styling */
+.media-item.selected {
+  border-color: #fbbf24 !important;
+  border-width: 3px !important;
+  box-shadow: 0 0 0 1px #fbbf24;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
