@@ -536,12 +536,6 @@ export class TimelineComponent {
     }));
   }
 
-  // Extract track number from track name
-  getTrackNumber(trackName: string): string {
-    const match = trackName.match(/\d+/);
-    return match ? match[0] : trackName;
-  }
-
   // Duration editor methods
   openDurationEditor(): void {
     this.editedDuration = this.state().totalDuration / 1000;
