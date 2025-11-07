@@ -1,4 +1,4 @@
-<div class="flex flex-col h-full bg-[#1e1e1e] text-gray-200 select-none" (mouseup)="onMouseUp()" (mousemove)="onDocumentMouseMove($event)">
+<div class="flex flex-col h-full bg-[#1e1e1e] text-gray-200 select-none" (mouseup)="onMouseUp($event)" (mousemove)="onDocumentMouseMove($event)">
   <!-- Toolbar -->
   <div class="flex justify-between items-center px-4 py-3 bg-[#252525] border-b border-[#3a3a3a]">
     <h2 class="text-lg font-semibold m-0">VideoEditor</h2>
@@ -108,11 +108,13 @@
         <!-- Track timeline -->
         <div class="relative flex-1">
           <div class="track relative bg-[#1a1a1a] min-h-[60px]"
-               (mousemove)="onTrackMouseMove($event, track)">
+               (mousemove)="onTrackMouseMove($event, track)"
+               (mousedown)="onTrackMouseDown($event)">
 
           @for (item of track.items; track item.id) {
             <div class="media-item group absolute h-12 top-1.5 rounded border-2 border-transparent cursor-move flex items-center overflow-hidden transition-colors hover:border-white/30"
                  [class]="getMediaTypeClass(item.type)"
+                 [class.selected]="isItemSelected(item.id)"
                  [style.left]="getItemStyle(item).left"
                  [style.width]="getItemStyle(item).width"
                  (mousedown)="onMediaItemMouseDown($event, item, track)">

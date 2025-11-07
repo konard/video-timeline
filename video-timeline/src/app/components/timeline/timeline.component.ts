@@ -31,7 +31,8 @@ export class TimelineComponent {
     ],
     playheadPosition: 0,
     zoomLevel: 50, // pixels per second
-    totalDuration: 60000 // 60 seconds in milliseconds
+    totalDuration: 60000, // 60 seconds in milliseconds
+    selectedItemId: null
   });
 
   // Computed values
@@ -76,6 +77,7 @@ export class TimelineComponent {
   private isDraggingPlayhead = false;
   private isDraggingFromRuler = false;
   private resizingItem: { item: MediaItem; edge: 'left' | 'right' } | null = null;
+  private mouseDownPosition: { x: number; y: number } | null = null; // Track mouse down position for click detection
 
   // Video preview state
   readonly isPlaying = signal<boolean>(false);
@@ -174,6 +176,9 @@ export class TimelineComponent {
       return;
     }
 
+    // Track mouse down position for click vs drag detection
+    this.mouseDownPosition = { x: event.clientX, y: event.clientY };
+
     // Calculate the offset from the item's start position to where the user clicked
     const trackElement = target.closest('.track') as HTMLElement;
     if (trackElement) {
@@ -190,6 +195,14 @@ export class TimelineComponent {
     this.draggedItem = item;
     this.draggedItemOriginalTrackId = track.id;
     event.preventDefault();
+  }
+
+  onTrackMouseDown(event: MouseEvent): void {
+    // Deselect when clicking on track background (not on media item)
+    const target = event.target as HTMLElement;
+    if (target.classList.contains('track')) {
+      this.deselectMediaItem();
+    }
   }
 
   onTrackMouseMove(event: MouseEvent, track: Track): void {
@@ -425,13 +438,26 @@ export class TimelineComponent {
     });
   }
 
-  onMouseUp(): void {
+  onMouseUp(event: MouseEvent): void {
+    // Detect if this was a click (not a drag) on a media item
+    if (this.draggedItem && this.mouseDownPosition) {
+      const dx = event.clientX - this.mouseDownPosition.x;
+      const dy = event.clientY - this.mouseDownPosition.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // If mouse moved less than 5 pixels, consider it a click
+      if (distance < 5) {
+        this.selectMediaItem(this.draggedItem.id);
+      }
+    }
+
     this.draggedItem = null;
     this.draggedItemOriginalTrackId = null;
     this.dragOffsetTime = 0;
     this.isDraggingPlayhead = false;
     this.isDraggingFromRuler = false;
     this.resizingItem = null;
+    this.mouseDownPosition = null;
   }
 
   onDocumentMouseMove(event: MouseEvent): void {
@@ -593,8 +619,29 @@ export class TimelineComponent {
         t.id === trackId
           ? { ...t, items: t.items.filter(i => i.id !== itemId) }
           : t
-      )
+      ),
+      // Deselect if removing selected item
+      selectedItemId: s.selectedItemId === itemId ? null : s.selectedItemId
     }));
+  }
+
+  // Media selection
+  selectMediaItem(itemId: string): void {
+    this.state.update(s => ({
+      ...s,
+      selectedItemId: itemId
+    }));
+  }
+
+  deselectMediaItem(): void {
+    this.state.update(s => ({
+      ...s,
+      selectedItemId: null
+    }));
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.state().selectedItemId === itemId;
   }
 
   readonly MediaType = MediaType;
