@@ -10,6 +10,7 @@ import { MediaItem } from '../models/timeline.models';
 })
 export class TimelineDragDropService {
   private readonly MIN_ITEM_DURATION = 100; // Minimum item duration in milliseconds
+  readonly SNAP_DISTANCE_MS = 200; // Snapping distance in milliseconds for drag operations
 
   constructor() { }
 
@@ -187,6 +188,68 @@ export class TimelineDragDropService {
   }
 
   /**
+   * Find snap targets for an item being dragged
+   * Returns array of snap points (start/end positions of items on other tracks and playhead position)
+   * Fixes issue #81: Enable snapping to placeholders on different tracks and playhead
+   */
+  findSnapTargets(
+    draggedItemId: string,
+    allTracks: { items: MediaItem[] }[],
+    playheadPosition: number
+  ): number[] {
+    const snapTargets: number[] = [];
+
+    // Add playhead position as a snap target
+    snapTargets.push(playheadPosition);
+
+    // Add start and end positions of all items on all tracks (except the dragged item)
+    for (const track of allTracks) {
+      for (const item of track.items) {
+        if (item.id !== draggedItemId) {
+          snapTargets.push(item.startTime);
+          snapTargets.push(item.startTime + item.duration);
+        }
+      }
+    }
+
+    return snapTargets;
+  }
+
+  /**
+   * Apply snapping to the requested start time if close to any snap target
+   * Returns the snapped start time or the original if no snapping occurs
+   * Fixes issue #81: Snap to nearby positions for more accurate positioning
+   */
+  applySnapping(
+    requestedStartTime: number,
+    itemDuration: number,
+    snapTargets: number[],
+    snapDistance: number = this.SNAP_DISTANCE_MS
+  ): number {
+    let snappedTime = requestedStartTime;
+    let minDistance = snapDistance;
+
+    for (const target of snapTargets) {
+      // Check snapping to start of item
+      const distanceToStart = Math.abs(requestedStartTime - target);
+      if (distanceToStart < minDistance) {
+        minDistance = distanceToStart;
+        snappedTime = target;
+      }
+
+      // Check snapping to end of item (align item's end with target)
+      const requestedEndTime = requestedStartTime + itemDuration;
+      const distanceToEnd = Math.abs(requestedEndTime - target);
+      if (distanceToEnd < minDistance) {
+        minDistance = distanceToEnd;
+        snappedTime = target - itemDuration;
+      }
+    }
+
+    return snappedTime;
+  }
+
+  /**
    * Calculate valid drag position with automatic duration adjustment to fit gaps
    * Fixes issue #33: When dragging into a gap smaller than item duration,
    * adjust duration to fit instead of overlapping adjacent items
@@ -194,19 +257,26 @@ export class TimelineDragDropService {
    * instead of jumping to the end of the track
    * Fixes issue #38: Prevent overlaps by ensuring items always start at or after gap start
    * Fixes issue #48: Enforce strict totalDuration limit when dragging items
+   * Fixes issue #81: Apply snapping to nearby placeholders and playhead
    */
   getValidDragPosition(
     item: MediaItem,
     requestedStartTime: number,
     trackItems: MediaItem[],
-    totalDuration: number
+    totalDuration: number,
+    snapTargets?: number[]
   ): { startTime: number; duration: number } {
+    // Apply snapping if snap targets are provided
+    let adjustedStartTime = requestedStartTime;
+    if (snapTargets && snapTargets.length > 0) {
+      adjustedStartTime = this.applySnapping(requestedStartTime, item.duration, snapTargets);
+    }
     const otherItems = trackItems.filter(i => i.id !== item.id);
 
     // Empty track - place at requested position with original duration
     // but ensure we don't exceed totalDuration
     if (otherItems.length === 0) {
-      const startTime = Math.max(0, requestedStartTime);
+      const startTime = Math.max(0, adjustedStartTime);
       const maxDuration = totalDuration - startTime;
       return {
         startTime,
@@ -214,14 +284,14 @@ export class TimelineDragDropService {
       };
     }
 
-    // Find which gap the requested position falls into
-    let gap = this.findGapForPosition(requestedStartTime, item.duration, otherItems);
+    // Find which gap the adjusted position falls into
+    let gap = this.findGapForPosition(adjustedStartTime, item.duration, otherItems);
 
     if (!gap) {
       // Position overlaps an existing item
       // Fix for issue #36: Find the closest gap instead of jumping to end
       const allGaps = this.findAllGaps(otherItems);
-      gap = this.findClosestGap(requestedStartTime, allGaps);
+      gap = this.findClosestGap(adjustedStartTime, allGaps);
     }
 
     const gapSize = gap.gapEnd === Infinity ? Infinity : gap.gapEnd - gap.gapStart;
@@ -230,7 +300,7 @@ export class TimelineDragDropService {
     // Fix for issue #38: Ensure item starts at or after gap start to prevent overlap
     // Fix for issue #48: Respect totalDuration limit even in infinite gap
     if (gapSize === Infinity) {
-      const startTime = Math.max(gap.gapStart, requestedStartTime);
+      const startTime = Math.max(gap.gapStart, adjustedStartTime);
       const maxDuration = totalDuration - startTime;
       return {
         startTime,
@@ -243,7 +313,7 @@ export class TimelineDragDropService {
     if (item.duration <= gapSize) {
       // Make sure the item doesn't go past the gap end
       const maxStartTime = gap.gapEnd - item.duration;
-      const finalStartTime = Math.max(gap.gapStart, Math.min(requestedStartTime, maxStartTime));
+      const finalStartTime = Math.max(gap.gapStart, Math.min(adjustedStartTime, maxStartTime));
       // Ensure we don't exceed totalDuration
       const maxDuration = totalDuration - finalStartTime;
       return {
