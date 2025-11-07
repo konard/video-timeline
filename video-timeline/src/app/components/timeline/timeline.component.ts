@@ -431,7 +431,9 @@ export class TimelineComponent {
     const markers: { position: number; label: string }[] = [];
     const stepMs = this.getMarkerInterval(); // Dynamic interval based on zoom level
 
-    for (let time = 0; time <= this.state().totalDuration; time += stepMs) {
+    // Fix for issue #85: Do not show the last time mark at totalDuration
+    // to prevent container expansion from the text label
+    for (let time = 0; time < this.state().totalDuration; time += stepMs) {
       markers.push({
         position: time * this.pixelsPerMillisecond(),
         label: this.formatTime(time)
