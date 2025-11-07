@@ -1,4 +1,4 @@
-<div class="flex flex-col h-full bg-[#1e1e1e] text-gray-200 select-none" (mouseup)="onMouseUp($event)" (mousemove)="onDocumentMouseMove($event)" (touchend)="onTouchEnd($event)" (touchmove)="onDocumentTouchMove($event)">
+<div class="flex flex-col h-full bg-[#1e1e1e] text-gray-200 select-none" (mouseup)="onPointerUp($event)" (mousemove)="onDocumentPointerMove($event)" (touchend)="onPointerUp($event)" (touchmove)="onDocumentPointerMove($event)">
   <!-- Toolbar -->
   <div class="flex justify-between items-center px-4 py-3 bg-[#252525] border-b border-[#3a3a3a]">
     <h2 class="text-lg font-semibold m-0">VideoEditor</h2>
@@ -63,8 +63,8 @@
       <div class="relative h-10 bg-[#2a2a2a] flex-1">
         <div class="relative h-full min-w-full cursor-pointer"
              [style.width.px]="timelineWidth()"
-             (mousedown)="onRulerMouseDown($event)"
-             (touchstart)="onRulerTouchStart($event)"
+             (mousedown)="onRulerPointerDown($event)"
+             (touchstart)="onRulerPointerDown($event)"
              #timelineRuler>
           @for (marker of getTimeMarkers(); track marker.position) {
             <div class="absolute top-0 h-full" [style.left.px]="marker.position">
@@ -76,8 +76,8 @@
         <!-- Playhead - positioned in ruler container to stay visible -->
         <div class="absolute top-0 pointer-events-none z-[5]"
              [style.left.px]="playheadPosition()"
-             (mousedown)="onPlayheadMouseDown($event)"
-             (touchstart)="onPlayheadTouchStart($event)">
+             (mousedown)="onPlayheadPointerDown($event)"
+             (touchstart)="onPlayheadPointerDown($event)">
           <div class="absolute -left-1.5 top-4 w-3 h-3 bg-red-500 rounded-sm cursor-ew-resize pointer-events-auto"></div>
           <div class="absolute left-0 top-4 w-0.5 bg-red-500 pointer-events-none" [style.height.px]="timelineLineHeight()"></div>
         </div>
@@ -110,10 +110,10 @@
         <!-- Track timeline -->
         <div class="relative flex-1">
           <div class="track relative bg-[#1a1a1a] min-h-[60px]"
-               (mousemove)="onTrackMouseMove($event, track)"
-               (mousedown)="onTrackMouseDown($event)"
-               (touchmove)="onTrackTouchMove($event, track)"
-               (touchstart)="onTrackTouchStart($event)">
+               (mousemove)="onTrackPointerMove($event, track)"
+               (mousedown)="onTrackPointerDown($event)"
+               (touchmove)="onTrackPointerMove($event, track)"
+               (touchstart)="onTrackPointerDown($event)">
 
           @for (item of track.items; track item.id) {
             <div class="media-item group absolute h-12 top-1.5 rounded border-2 border-transparent cursor-move flex items-center overflow-hidden transition-colors hover:border-white/30"
@@ -121,8 +121,8 @@
                  [class.selected]="isItemSelected(item.id)"
                  [style.left]="getItemStyle(item).left"
                  [style.width]="getItemStyle(item).width"
-                 (mousedown)="onMediaItemMouseDown($event, item, track)"
-                 (touchstart)="onMediaItemTouchStart($event, item, track)">
+                 (mousedown)="onMediaItemPointerDown($event, item, track)"
+                 (touchstart)="onMediaItemPointerDown($event, item, track)">
 
               <div class="resize-handle resize-handle-left absolute top-0 left-0 w-2 h-full cursor-ew-resize z-[2] bg-gradient-to-r from-white/30 to-transparent hover:bg-white/50"></div>
 

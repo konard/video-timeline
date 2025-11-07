@@ -136,17 +136,28 @@ export class TimelineComponent {
     }));
   }
 
+  // Utility method to extract coordinates from mouse or touch events
+  private getEventCoordinates(event: MouseEvent | TouchEvent): { clientX: number; clientY: number } {
+    if (event instanceof MouseEvent) {
+      return { clientX: event.clientX, clientY: event.clientY };
+    } else {
+      const touch = event.touches[0] || event.changedTouches[0];
+      return { clientX: touch.clientX, clientY: touch.clientY };
+    }
+  }
+
   // Playhead controls
-  onRulerMouseDown(event: MouseEvent): void {
+  onRulerPointerDown(event: MouseEvent | TouchEvent): void {
     event.preventDefault();
     this.isDraggingFromRuler = true;
 
-    // Immediately update position on mouse down
+    // Immediately update position on pointer down
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
+    const coords = this.getEventCoordinates(event);
     // Calculate position within the ruler element
     // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
-    const x = event.clientX - rect.left;
+    const x = coords.clientX - rect.left;
     const newPosition = x / this.pixelsPerMillisecond();
 
     this.state.update(s => ({
@@ -155,30 +166,7 @@ export class TimelineComponent {
     }));
   }
 
-  onRulerTouchStart(event: TouchEvent): void {
-    event.preventDefault();
-    this.isDraggingFromRuler = true;
-
-    // Immediately update position on touch start
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const touch = event.touches[0];
-    const x = touch.clientX - rect.left;
-    const newPosition = x / this.pixelsPerMillisecond();
-
-    this.state.update(s => ({
-      ...s,
-      playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-    }));
-  }
-
-  onPlayheadMouseDown(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDraggingPlayhead = true;
-  }
-
-  onPlayheadTouchStart(event: TouchEvent): void {
+  onPlayheadPointerDown(event: MouseEvent | TouchEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.isDraggingPlayhead = true;
@@ -186,10 +174,10 @@ export class TimelineComponent {
 
 
   // Media item drag and drop
-  onMediaItemMouseDown(event: MouseEvent, item: MediaItem, track: Track): void {
+  onMediaItemPointerDown(event: MouseEvent | TouchEvent, item: MediaItem, track: Track): void {
     const target = event.target as HTMLElement;
 
-    // Check if clicking on resize handle
+    // Check if clicking/touching on resize handle
     if (target.classList.contains('resize-handle')) {
       this.resizingItem = {
         item,
@@ -199,16 +187,17 @@ export class TimelineComponent {
       return;
     }
 
-    // Track mouse down position for click vs drag detection
-    this.mouseDownPosition = { x: event.clientX, y: event.clientY };
+    const coords = this.getEventCoordinates(event);
+    // Track pointer down position for click vs drag detection
+    this.mouseDownPosition = { x: coords.clientX, y: coords.clientY };
 
-    // Calculate the offset from the item's start position to where the user clicked
+    // Calculate the offset from the item's start position to where the user clicked/touched
     const trackElement = target.closest('.track') as HTMLElement;
     if (trackElement) {
       const rect = trackElement.getBoundingClientRect();
       // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-      // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-      const clickX = event.clientX - rect.left;
+      // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+      const clickX = coords.clientX - rect.left;
       const clickTime = clickX / this.pixelsPerMillisecond();
       this.dragOffsetTime = clickTime - item.startTime;
     } else {
@@ -220,56 +209,15 @@ export class TimelineComponent {
     event.preventDefault();
   }
 
-  onMediaItemTouchStart(event: TouchEvent, item: MediaItem, track: Track): void {
-    const target = event.target as HTMLElement;
-
-    // Check if touching resize handle
-    if (target.classList.contains('resize-handle')) {
-      this.resizingItem = {
-        item,
-        edge: target.classList.contains('resize-handle-left') ? 'left' : 'right'
-      };
-      event.preventDefault();
-      return;
-    }
-
-    const touch = event.touches[0];
-    // Track touch start position for tap vs drag detection
-    this.mouseDownPosition = { x: touch.clientX, y: touch.clientY };
-
-    // Calculate the offset from the item's start position to where the user touched
-    const trackElement = target.closest('.track') as HTMLElement;
-    if (trackElement) {
-      const rect = trackElement.getBoundingClientRect();
-      const touchX = touch.clientX - rect.left;
-      const touchTime = touchX / this.pixelsPerMillisecond();
-      this.dragOffsetTime = touchTime - item.startTime;
-    } else {
-      this.dragOffsetTime = 0;
-    }
-
-    this.draggedItem = item;
-    this.draggedItemOriginalTrackId = track.id;
-    event.preventDefault();
-  }
-
-  onTrackMouseDown(event: MouseEvent): void {
-    // Deselect when clicking on track background (not on media item)
+  onTrackPointerDown(event: MouseEvent | TouchEvent): void {
+    // Deselect when clicking/touching track background (not on media item)
     const target = event.target as HTMLElement;
     if (target.classList.contains('track')) {
       this.deselectMediaItem();
     }
   }
 
-  onTrackTouchStart(event: TouchEvent): void {
-    // Deselect when touching track background (not on media item)
-    const target = event.target as HTMLElement;
-    if (target.classList.contains('track')) {
-      this.deselectMediaItem();
-    }
-  }
-
-  onTrackMouseMove(event: MouseEvent, track: Track): void {
+  onTrackPointerMove(event: MouseEvent | TouchEvent, track: Track): void {
     if (this.resizingItem) {
       this.handleResize(event, track);
       return;
@@ -277,13 +225,14 @@ export class TimelineComponent {
 
     if (!this.draggedItem) return;
 
+    const coords = this.getEventCoordinates(event);
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-    // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-    const x = event.clientX - rect.left;
+    // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+    const x = coords.clientX - rect.left;
     // Calculate the requested start time by subtracting the drag offset
-    // This keeps the cursor at the same position within the item where dragging started
+    // This keeps the pointer at the same position within the item where dragging started
     const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
 
     this.state.update(s => {
@@ -358,92 +307,15 @@ export class TimelineComponent {
     });
   }
 
-  onTrackTouchMove(event: TouchEvent, track: Track): void {
-    if (this.resizingItem) {
-      this.handleResizeTouch(event, track);
-      return;
-    }
-
-    if (!this.draggedItem) return;
-
-    const touch = event.touches[0];
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
-
-    this.state.update(s => {
-      const updatedTracks = s.tracks.map(t => {
-        if (t.id === track.id) {
-          const otherItems = t.items.filter(i => i.id !== this.draggedItem!.id);
-
-          const snapTargets = this.dragDropService.findSnapTargets(
-            this.draggedItem!.id,
-            s.tracks,
-            s.playheadPosition
-          );
-
-          const validPosition = this.dragDropService.getValidDragPosition(
-            this.draggedItem!,
-            requestedStartTime,
-            otherItems,
-            s.totalDuration,
-            snapTargets
-          );
-
-          const itemExists = t.items.some(i => i.id === this.draggedItem!.id);
-
-          if (itemExists) {
-            return {
-              ...t,
-              items: t.items.map(i =>
-                i.id === this.draggedItem!.id
-                  ? {
-                      ...i,
-                      startTime: validPosition.startTime,
-                      duration: validPosition.duration,
-                      trackId: track.id
-                    }
-                  : i
-              )
-            };
-          } else {
-            return {
-              ...t,
-              items: [
-                ...otherItems,
-                {
-                  ...this.draggedItem!,
-                  startTime: validPosition.startTime,
-                  duration: validPosition.duration,
-                  trackId: track.id
-                }
-              ]
-            };
-          }
-        } else if (t.id === this.draggedItemOriginalTrackId && t.id !== track.id) {
-          return {
-            ...t,
-            items: t.items.filter(i => i.id !== this.draggedItem!.id)
-          };
-        }
-        return t;
-      });
-
-      this.draggedItemOriginalTrackId = track.id;
-
-      return { ...s, tracks: updatedTracks };
-    });
-  }
-
-  private handleResize(event: MouseEvent, track: Track): void {
+  private handleResize(event: MouseEvent | TouchEvent, track: Track): void {
     if (!this.resizingItem) return;
 
+    const coords = this.getEventCoordinates(event);
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-    // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-    const x = event.clientX - rect.left;
+    // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+    const x = coords.clientX - rect.left;
     const timeAtCursor = x / this.pixelsPerMillisecond();
 
     this.state.update(s => {
@@ -580,141 +452,15 @@ export class TimelineComponent {
     });
   }
 
-  private handleResizeTouch(event: TouchEvent, track: Track): void {
-    if (!this.resizingItem) return;
-
-    const touch = event.touches[0];
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const timeAtCursor = x / this.pixelsPerMillisecond();
-
-    this.state.update(s => {
-      const snapTargets = this.dragDropService.findSnapTargets(
-        this.resizingItem!.item.id,
-        s.tracks,
-        s.playheadPosition
-      );
-
-      const updatedTracks = s.tracks.map(t => {
-        if (t.id === track.id) {
-          const bounds = this.dragDropService.getResizeBounds(
-            this.resizingItem!.item,
-            t.items,
-            this.resizingItem!.edge,
-            s.totalDuration
-          );
-
-          return {
-            ...t,
-            items: t.items.map(i => {
-              if (i.id === this.resizingItem!.item.id) {
-                if (this.resizingItem!.edge === 'left') {
-                  let newStartTime = Math.max(
-                    bounds.minTime,
-                    Math.min(timeAtCursor, bounds.maxTime)
-                  );
-
-                  let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
-                  for (const target of snapTargets) {
-                    const distance = Math.abs(newStartTime - target);
-                    if (distance < minDistance) {
-                      minDistance = distance;
-                      if (target >= bounds.minTime && target <= bounds.maxTime) {
-                        newStartTime = target;
-                      }
-                    }
-                  }
-
-                  const deltaTime = newStartTime - i.startTime;
-                  const newDuration = i.duration - deltaTime;
-
-                  const currentMediaStartTime = i.mediaStartTime || 0;
-                  const newMediaStartTime = currentMediaStartTime + deltaTime;
-
-                  if (newMediaStartTime < 0) {
-                    const maxExtension = currentMediaStartTime;
-                    const finalStartTime = i.startTime - maxExtension;
-                    const finalDuration = i.duration + maxExtension;
-
-                    if (i.maxDuration && finalDuration > i.maxDuration) {
-                      return {
-                        ...i,
-                        startTime: finalStartTime + (finalDuration - i.maxDuration),
-                        duration: i.maxDuration,
-                        mediaStartTime: 0
-                      };
-                    }
-
-                    return {
-                      ...i,
-                      startTime: finalStartTime,
-                      duration: finalDuration,
-                      mediaStartTime: 0
-                    };
-                  }
-
-                  if (i.maxDuration && newMediaStartTime + newDuration > i.maxDuration) {
-                    const maxAllowedDuration = i.maxDuration - newMediaStartTime;
-                    return {
-                      ...i,
-                      startTime: i.startTime + (i.duration - maxAllowedDuration),
-                      duration: maxAllowedDuration,
-                      mediaStartTime: newMediaStartTime
-                    };
-                  }
-
-                  return {
-                    ...i,
-                    startTime: newStartTime,
-                    duration: newDuration,
-                    mediaStartTime: newMediaStartTime
-                  };
-                } else {
-                  let newEndTime = Math.max(
-                    bounds.minTime,
-                    Math.min(timeAtCursor, bounds.maxTime)
-                  );
-
-                  let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
-                  for (const target of snapTargets) {
-                    const distance = Math.abs(newEndTime - target);
-                    if (distance < minDistance) {
-                      minDistance = distance;
-                      if (target >= bounds.minTime && target <= bounds.maxTime) {
-                        newEndTime = target;
-                      }
-                    }
-                  }
-
-                  const newDuration = newEndTime - i.startTime;
-
-                  const limitedDuration = i.maxDuration
-                    ? Math.min(newDuration, i.maxDuration)
-                    : newDuration;
-
-                  return { ...i, duration: limitedDuration };
-                }
-              }
-              return i;
-            })
-          };
-        }
-        return t;
-      });
-
-      return { ...s, tracks: updatedTracks };
-    });
-  }
-
-  onMouseUp(event: MouseEvent): void {
-    // Detect if this was a click (not a drag) on a media item
+  onPointerUp(event: MouseEvent | TouchEvent): void {
+    // Detect if this was a click/tap (not a drag) on a media item
     if (this.draggedItem && this.mouseDownPosition) {
-      const dx = event.clientX - this.mouseDownPosition.x;
-      const dy = event.clientY - this.mouseDownPosition.y;
+      const coords = this.getEventCoordinates(event);
+      const dx = coords.clientX - this.mouseDownPosition.x;
+      const dy = coords.clientY - this.mouseDownPosition.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // If mouse moved less than 5 pixels, consider it a click
+      // If pointer moved less than 5 pixels, consider it a click/tap
       if (distance < 5) {
         this.selectMediaItem(this.draggedItem.id);
       }
@@ -729,60 +475,19 @@ export class TimelineComponent {
     this.mouseDownPosition = null;
   }
 
-  onTouchEnd(event: TouchEvent): void {
-    // Detect if this was a tap (not a drag) on a media item
-    if (this.draggedItem && this.mouseDownPosition && event.changedTouches.length > 0) {
-      const touch = event.changedTouches[0];
-      const dx = touch.clientX - this.mouseDownPosition.x;
-      const dy = touch.clientY - this.mouseDownPosition.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      // If touch moved less than 5 pixels, consider it a tap
-      if (distance < 5) {
-        this.selectMediaItem(this.draggedItem.id);
-      }
-    }
-
-    this.draggedItem = null;
-    this.draggedItemOriginalTrackId = null;
-    this.dragOffsetTime = 0;
-    this.isDraggingPlayhead = false;
-    this.isDraggingFromRuler = false;
-    this.resizingItem = null;
-    this.mouseDownPosition = null;
-  }
-
-  onDocumentMouseMove(event: MouseEvent): void {
+  onDocumentPointerMove(event: MouseEvent | TouchEvent): void {
     if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      // Fix for issue #50: Use ViewChild reference to ensure we use the exact same element as onRulerMouseDown
+      // Fix for issue #50: Use ViewChild reference to ensure we use the exact same element as onRulerPointerDown
       if (!this.timelineRuler) {
         return;
       }
 
+      const coords = this.getEventCoordinates(event);
       const rulerElement = this.timelineRuler.nativeElement;
-      // Use the same calculation as onRulerMouseDown
+      // Use the same calculation as onRulerPointerDown
       // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
       const rect = rulerElement.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const newPosition = x / this.pixelsPerMillisecond();
-
-      this.state.update(s => ({
-        ...s,
-        playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
-      }));
-    }
-  }
-
-  onDocumentTouchMove(event: TouchEvent): void {
-    if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      if (!this.timelineRuler) {
-        return;
-      }
-
-      const touch = event.touches[0];
-      const rulerElement = this.timelineRuler.nativeElement;
-      const rect = rulerElement.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
+      const x = coords.clientX - rect.left;
       const newPosition = x / this.pixelsPerMillisecond();
 
       this.state.update(s => ({
