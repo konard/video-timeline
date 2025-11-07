@@ -314,7 +314,8 @@ export class TimelineComponent {
             items: t.items.map(i => {
               if (i.id === this.resizingItem!.item.id) {
                 if (this.resizingItem!.edge === 'left') {
-                  // Fix for issue #87: Apply snapping to left edge (start time)
+                  // Fix for issue #89: Handle mediaStartTime when resizing from left
+                  // Apply snapping to left edge (start time)
                   let newStartTime = Math.max(
                     bounds.minTime,
                     Math.min(timeAtCursor, bounds.maxTime)
@@ -333,17 +334,56 @@ export class TimelineComponent {
                     }
                   }
 
-                  const newDuration = i.duration + (i.startTime - newStartTime);
+                  // Calculate how much the timeline position is changing
+                  const deltaTime = newStartTime - i.startTime;
+                  const newDuration = i.duration - deltaTime;
 
-                  // Limit duration by maxDuration if specified
-                  const limitedDuration = i.maxDuration
-                    ? Math.min(newDuration, i.maxDuration)
-                    : newDuration;
+                  // Update media start time (trimming from source media)
+                  const currentMediaStartTime = i.mediaStartTime || 0;
+                  const newMediaStartTime = currentMediaStartTime + deltaTime;
 
-                  // Adjust startTime if duration was limited
-                  const adjustedStartTime = i.startTime + i.duration - limitedDuration;
+                  // Check if we're trying to extend beyond the start of source media
+                  if (newMediaStartTime < 0) {
+                    // Can only extend left by currentMediaStartTime amount
+                    const maxExtension = currentMediaStartTime;
+                    const finalStartTime = i.startTime - maxExtension;
+                    const finalDuration = i.duration + maxExtension;
 
-                  return { ...i, startTime: adjustedStartTime, duration: limitedDuration };
+                    // Ensure we don't exceed maxDuration
+                    if (i.maxDuration && finalDuration > i.maxDuration) {
+                      return {
+                        ...i,
+                        startTime: finalStartTime + (finalDuration - i.maxDuration),
+                        duration: i.maxDuration,
+                        mediaStartTime: 0
+                      };
+                    }
+
+                    return {
+                      ...i,
+                      startTime: finalStartTime,
+                      duration: finalDuration,
+                      mediaStartTime: 0
+                    };
+                  }
+
+                  // Ensure media end doesn't exceed maxDuration
+                  if (i.maxDuration && newMediaStartTime + newDuration > i.maxDuration) {
+                    const maxAllowedDuration = i.maxDuration - newMediaStartTime;
+                    return {
+                      ...i,
+                      startTime: i.startTime + (i.duration - maxAllowedDuration),
+                      duration: maxAllowedDuration,
+                      mediaStartTime: newMediaStartTime
+                    };
+                  }
+
+                  return {
+                    ...i,
+                    startTime: newStartTime,
+                    duration: newDuration,
+                    mediaStartTime: newMediaStartTime
+                  };
                 } else {
                   // Fix for issue #87: Apply snapping to right edge (end time)
                   let newEndTime = Math.max(
