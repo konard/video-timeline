@@ -136,17 +136,28 @@ export class TimelineComponent {
     }));
   }
 
+  // Utility method to extract coordinates from mouse or touch events
+  private getEventCoordinates(event: MouseEvent | TouchEvent): { clientX: number; clientY: number } {
+    if (event instanceof MouseEvent) {
+      return { clientX: event.clientX, clientY: event.clientY };
+    } else {
+      const touch = event.touches[0] || event.changedTouches[0];
+      return { clientX: touch.clientX, clientY: touch.clientY };
+    }
+  }
+
   // Playhead controls
-  onRulerMouseDown(event: MouseEvent): void {
+  onRulerPointerDown(event: MouseEvent | TouchEvent): void {
     event.preventDefault();
     this.isDraggingFromRuler = true;
 
-    // Immediately update position on mouse down
+    // Immediately update position on pointer down
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
+    const coords = this.getEventCoordinates(event);
     // Calculate position within the ruler element
     // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
-    const x = event.clientX - rect.left;
+    const x = coords.clientX - rect.left;
     const newPosition = x / this.pixelsPerMillisecond();
 
     this.state.update(s => ({
@@ -155,7 +166,7 @@ export class TimelineComponent {
     }));
   }
 
-  onPlayheadMouseDown(event: MouseEvent): void {
+  onPlayheadPointerDown(event: MouseEvent | TouchEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.isDraggingPlayhead = true;
@@ -163,10 +174,10 @@ export class TimelineComponent {
 
 
   // Media item drag and drop
-  onMediaItemMouseDown(event: MouseEvent, item: MediaItem, track: Track): void {
+  onMediaItemPointerDown(event: MouseEvent | TouchEvent, item: MediaItem, track: Track): void {
     const target = event.target as HTMLElement;
 
-    // Check if clicking on resize handle
+    // Check if clicking/touching on resize handle
     if (target.classList.contains('resize-handle')) {
       this.resizingItem = {
         item,
@@ -176,16 +187,17 @@ export class TimelineComponent {
       return;
     }
 
-    // Track mouse down position for click vs drag detection
-    this.mouseDownPosition = { x: event.clientX, y: event.clientY };
+    const coords = this.getEventCoordinates(event);
+    // Track pointer down position for click vs drag detection
+    this.mouseDownPosition = { x: coords.clientX, y: coords.clientY };
 
-    // Calculate the offset from the item's start position to where the user clicked
+    // Calculate the offset from the item's start position to where the user clicked/touched
     const trackElement = target.closest('.track') as HTMLElement;
     if (trackElement) {
       const rect = trackElement.getBoundingClientRect();
       // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-      // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-      const clickX = event.clientX - rect.left;
+      // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+      const clickX = coords.clientX - rect.left;
       const clickTime = clickX / this.pixelsPerMillisecond();
       this.dragOffsetTime = clickTime - item.startTime;
     } else {
@@ -197,15 +209,15 @@ export class TimelineComponent {
     event.preventDefault();
   }
 
-  onTrackMouseDown(event: MouseEvent): void {
-    // Deselect when clicking on track background (not on media item)
+  onTrackPointerDown(event: MouseEvent | TouchEvent): void {
+    // Deselect when clicking/touching track background (not on media item)
     const target = event.target as HTMLElement;
     if (target.classList.contains('track')) {
       this.deselectMediaItem();
     }
   }
 
-  onTrackMouseMove(event: MouseEvent, track: Track): void {
+  onTrackPointerMove(event: MouseEvent | TouchEvent, track: Track): void {
     if (this.resizingItem) {
       this.handleResize(event, track);
       return;
@@ -213,13 +225,14 @@ export class TimelineComponent {
 
     if (!this.draggedItem) return;
 
+    const coords = this.getEventCoordinates(event);
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-    // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-    const x = event.clientX - rect.left;
+    // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+    const x = coords.clientX - rect.left;
     // Calculate the requested start time by subtracting the drag offset
-    // This keeps the cursor at the same position within the item where dragging started
+    // This keeps the pointer at the same position within the item where dragging started
     const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
 
     this.state.update(s => {
@@ -294,14 +307,15 @@ export class TimelineComponent {
     });
   }
 
-  private handleResize(event: MouseEvent, track: Track): void {
+  private handleResize(event: MouseEvent | TouchEvent, track: Track): void {
     if (!this.resizingItem) return;
 
+    const coords = this.getEventCoordinates(event);
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-    // and event.clientX is also viewport-relative, so we don't need to add scrollLeft
-    const x = event.clientX - rect.left;
+    // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+    const x = coords.clientX - rect.left;
     const timeAtCursor = x / this.pixelsPerMillisecond();
 
     this.state.update(s => {
@@ -438,14 +452,15 @@ export class TimelineComponent {
     });
   }
 
-  onMouseUp(event: MouseEvent): void {
-    // Detect if this was a click (not a drag) on a media item
+  onPointerUp(event: MouseEvent | TouchEvent): void {
+    // Detect if this was a click/tap (not a drag) on a media item
     if (this.draggedItem && this.mouseDownPosition) {
-      const dx = event.clientX - this.mouseDownPosition.x;
-      const dy = event.clientY - this.mouseDownPosition.y;
+      const coords = this.getEventCoordinates(event);
+      const dx = coords.clientX - this.mouseDownPosition.x;
+      const dy = coords.clientY - this.mouseDownPosition.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // If mouse moved less than 5 pixels, consider it a click
+      // If pointer moved less than 5 pixels, consider it a click/tap
       if (distance < 5) {
         this.selectMediaItem(this.draggedItem.id);
       }
@@ -460,18 +475,19 @@ export class TimelineComponent {
     this.mouseDownPosition = null;
   }
 
-  onDocumentMouseMove(event: MouseEvent): void {
+  onDocumentPointerMove(event: MouseEvent | TouchEvent): void {
     if (this.isDraggingPlayhead || this.isDraggingFromRuler) {
-      // Fix for issue #50: Use ViewChild reference to ensure we use the exact same element as onRulerMouseDown
+      // Fix for issue #50: Use ViewChild reference to ensure we use the exact same element as onRulerPointerDown
       if (!this.timelineRuler) {
         return;
       }
 
+      const coords = this.getEventCoordinates(event);
       const rulerElement = this.timelineRuler.nativeElement;
-      // Use the same calculation as onRulerMouseDown
+      // Use the same calculation as onRulerPointerDown
       // getBoundingClientRect() already accounts for scroll, so we don't add scrollLeft
       const rect = rulerElement.getBoundingClientRect();
-      const x = event.clientX - rect.left;
+      const x = coords.clientX - rect.left;
       const newPosition = x / this.pixelsPerMillisecond();
 
       this.state.update(s => ({
