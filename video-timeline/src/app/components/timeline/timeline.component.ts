@@ -495,6 +495,53 @@ export class TimelineComponent {
         playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
       }));
     }
+
+    // Fix for issue #96: Handle media item dragging and resizing at document level for touch events
+    // This allows dragging between tracks on mobile devices
+    if (event instanceof TouchEvent) {
+      if (this.draggedItem) {
+        // Find which track the touch is currently over
+        const targetTrack = this.findTrackAtCoordinates(this.getEventCoordinates(event));
+        if (targetTrack) {
+          // Reuse existing drag logic
+          this.onTrackPointerMove(event, targetTrack);
+        }
+      } else if (this.resizingItem) {
+        // Find the track that contains the resizing item
+        const targetTrack = this.findTrackContainingItem(this.resizingItem.item.id);
+        if (targetTrack) {
+          // Reuse existing resize logic
+          this.handleResize(event, targetTrack);
+        }
+      }
+    }
+  }
+
+  // Helper method to find which track is at the given Y coordinate
+  private findTrackAtCoordinates(coords: { clientX: number; clientY: number }): Track | null {
+    const trackElements = document.querySelectorAll('.track');
+    for (const trackElement of Array.from(trackElements)) {
+      const rect = trackElement.getBoundingClientRect();
+      if (coords.clientY >= rect.top && coords.clientY <= rect.bottom) {
+        const trackIndex = Array.from(trackElements).indexOf(trackElement);
+        const tracks = this.state().tracks;
+        if (trackIndex >= 0 && trackIndex < tracks.length) {
+          return tracks[trackIndex];
+        }
+      }
+    }
+    return null;
+  }
+
+  // Helper method to find the track containing a specific item
+  private findTrackContainingItem(itemId: string): Track | null {
+    const currentState = this.state();
+    for (const track of currentState.tracks) {
+      if (track.items.some(item => item.id === itemId)) {
+        return track;
+      }
+    }
+    return null;
   }
 
   // Helper methods
