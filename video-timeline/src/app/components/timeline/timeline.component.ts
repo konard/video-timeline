@@ -495,6 +495,246 @@ export class TimelineComponent {
         playheadPosition: Math.max(0, Math.min(newPosition, s.totalDuration))
       }));
     }
+
+    // Fix for issue #96: Handle media item dragging at document level for touch events
+    // This allows dragging between tracks on mobile devices
+    if (this.draggedItem && event instanceof TouchEvent) {
+      const coords = this.getEventCoordinates(event);
+
+      // Find which track the touch is currently over
+      const trackElements = document.querySelectorAll('.track');
+      let targetTrack: Track | null = null;
+
+      for (const trackElement of Array.from(trackElements)) {
+        const rect = trackElement.getBoundingClientRect();
+        if (coords.clientY >= rect.top && coords.clientY <= rect.bottom) {
+          // Find the track by matching the DOM position with state tracks
+          const trackIndex = Array.from(trackElements).indexOf(trackElement);
+          const tracks = this.state().tracks;
+          if (trackIndex >= 0 && trackIndex < tracks.length) {
+            targetTrack = tracks[trackIndex];
+            break;
+          }
+        }
+      }
+
+      // If we found a track under the touch, handle the drag
+      if (targetTrack) {
+        const trackElement = Array.from(trackElements)[this.state().tracks.indexOf(targetTrack)];
+        if (trackElement) {
+          const rect = trackElement.getBoundingClientRect();
+          const x = coords.clientX - rect.left;
+          const requestedStartTime = Math.max(0, x / this.pixelsPerMillisecond() - this.dragOffsetTime);
+
+          this.state.update(s => {
+            const updatedTracks = s.tracks.map(t => {
+              if (t.id === targetTrack!.id) {
+                const otherItems = t.items.filter(i => i.id !== this.draggedItem!.id);
+
+                const snapTargets = this.dragDropService.findSnapTargets(
+                  this.draggedItem!.id,
+                  s.tracks,
+                  s.playheadPosition
+                );
+
+                const validPosition = this.dragDropService.getValidDragPosition(
+                  this.draggedItem!,
+                  requestedStartTime,
+                  otherItems,
+                  s.totalDuration,
+                  snapTargets
+                );
+
+                const itemExists = t.items.some(i => i.id === this.draggedItem!.id);
+
+                if (itemExists) {
+                  return {
+                    ...t,
+                    items: t.items.map(i =>
+                      i.id === this.draggedItem!.id
+                        ? {
+                            ...i,
+                            startTime: validPosition.startTime,
+                            duration: validPosition.duration,
+                            trackId: targetTrack!.id
+                          }
+                        : i
+                    )
+                  };
+                } else {
+                  return {
+                    ...t,
+                    items: [
+                      ...otherItems,
+                      {
+                        ...this.draggedItem!,
+                        startTime: validPosition.startTime,
+                        duration: validPosition.duration,
+                        trackId: targetTrack!.id
+                      }
+                    ]
+                  };
+                }
+              } else if (t.id === this.draggedItemOriginalTrackId && t.id !== targetTrack!.id) {
+                return {
+                  ...t,
+                  items: t.items.filter(i => i.id !== this.draggedItem!.id)
+                };
+              }
+              return t;
+            });
+
+            this.draggedItemOriginalTrackId = targetTrack!.id;
+            return { ...s, tracks: updatedTracks };
+          });
+        }
+      }
+    }
+
+    // Fix for issue #96: Handle resizing at document level for touch events
+    if (this.resizingItem && event instanceof TouchEvent) {
+      const coords = this.getEventCoordinates(event);
+
+      // Find the track that contains the resizing item
+      const currentState = this.state();
+      let targetTrack: Track | null = null;
+
+      for (const track of currentState.tracks) {
+        if (track.items.some(item => item.id === this.resizingItem!.item.id)) {
+          targetTrack = track;
+          break;
+        }
+      }
+
+      if (targetTrack) {
+        const trackElements = document.querySelectorAll('.track');
+        const trackIndex = currentState.tracks.indexOf(targetTrack);
+        const trackElement = trackElements[trackIndex];
+
+        if (trackElement) {
+          const rect = trackElement.getBoundingClientRect();
+          const x = coords.clientX - rect.left;
+          const timeAtCursor = x / this.pixelsPerMillisecond();
+
+          this.state.update(s => {
+            const snapTargets = this.dragDropService.findSnapTargets(
+              this.resizingItem!.item.id,
+              s.tracks,
+              s.playheadPosition
+            );
+
+            const updatedTracks = s.tracks.map(t => {
+              if (t.id === targetTrack!.id) {
+                const bounds = this.dragDropService.getResizeBounds(
+                  this.resizingItem!.item,
+                  t.items,
+                  this.resizingItem!.edge,
+                  s.totalDuration
+                );
+
+                return {
+                  ...t,
+                  items: t.items.map(i => {
+                    if (i.id === this.resizingItem!.item.id) {
+                      if (this.resizingItem!.edge === 'left') {
+                        let newStartTime = Math.max(
+                          bounds.minTime,
+                          Math.min(timeAtCursor, bounds.maxTime)
+                        );
+
+                        let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
+                        for (const target of snapTargets) {
+                          const distance = Math.abs(newStartTime - target);
+                          if (distance < minDistance) {
+                            minDistance = distance;
+                            if (target >= bounds.minTime && target <= bounds.maxTime) {
+                              newStartTime = target;
+                            }
+                          }
+                        }
+
+                        const deltaTime = newStartTime - i.startTime;
+                        const newDuration = i.duration - deltaTime;
+
+                        const currentMediaStartTime = i.mediaStartTime || 0;
+                        const newMediaStartTime = currentMediaStartTime + deltaTime;
+
+                        if (newMediaStartTime < 0) {
+                          const maxExtension = currentMediaStartTime;
+                          const finalStartTime = i.startTime - maxExtension;
+                          const finalDuration = i.duration + maxExtension;
+
+                          if (i.maxDuration && finalDuration > i.maxDuration) {
+                            return {
+                              ...i,
+                              startTime: finalStartTime + (finalDuration - i.maxDuration),
+                              duration: i.maxDuration,
+                              mediaStartTime: 0
+                            };
+                          }
+
+                          return {
+                            ...i,
+                            startTime: finalStartTime,
+                            duration: finalDuration,
+                            mediaStartTime: 0
+                          };
+                        }
+
+                        if (i.maxDuration && newMediaStartTime + newDuration > i.maxDuration) {
+                          const maxAllowedDuration = i.maxDuration - newMediaStartTime;
+                          return {
+                            ...i,
+                            startTime: i.startTime + (i.duration - maxAllowedDuration),
+                            duration: maxAllowedDuration,
+                            mediaStartTime: newMediaStartTime
+                          };
+                        }
+
+                        return {
+                          ...i,
+                          startTime: newStartTime,
+                          duration: newDuration,
+                          mediaStartTime: newMediaStartTime
+                        };
+                      } else {
+                        let newEndTime = Math.max(
+                          bounds.minTime,
+                          Math.min(timeAtCursor, bounds.maxTime)
+                        );
+
+                        let minDistance = this.dragDropService.SNAP_DISTANCE_MS;
+                        for (const target of snapTargets) {
+                          const distance = Math.abs(newEndTime - target);
+                          if (distance < minDistance) {
+                            minDistance = distance;
+                            if (target >= bounds.minTime && target <= bounds.maxTime) {
+                              newEndTime = target;
+                            }
+                          }
+                        }
+
+                        const newDuration = newEndTime - i.startTime;
+
+                        const limitedDuration = i.maxDuration
+                          ? Math.min(newDuration, i.maxDuration)
+                          : newDuration;
+
+                        return { ...i, duration: limitedDuration };
+                      }
+                    }
+                    return i;
+                  })
+                };
+              }
+              return t;
+            });
+
+            return { ...s, tracks: updatedTracks };
+          });
+        }
+      }
+    }
   }
 
   // Helper methods
