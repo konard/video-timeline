@@ -192,16 +192,22 @@ export class TimelineComponent {
     this.mouseDownPosition = { x: coords.clientX, y: coords.clientY };
 
     // Calculate the offset from the item's start position to where the user clicked/touched
-    // Fix for issue #100: Use event.currentTarget to get the media item element directly.
-    // event.currentTarget is the element with the event handler (.media-item), while
-    // event.target might be a child element (icon, text, etc.). Using currentTarget
-    // ensures we always get the correct bounding rect, which is critical for accurate
-    // touch drag offset calculation on mobile devices.
+    // Fix for issue #100: Use the track element's bounding rect as reference, not the media item's.
+    // This ensures we use the same coordinate system in both onMediaItemPointerDown and onTrackPointerMove.
+    //
+    // The issue was that:
+    // - onMediaItemPointerDown used mediaItem.getBoundingClientRect() (which includes the item's position)
+    // - onTrackPointerMove used track.getBoundingClientRect() (which is the track's left edge)
+    //
+    // On Android mobile, this caused a jump equal to the width of the left panel (150px) because
+    // the track's left edge is 150px to the left of where the media item starts.
+    //
+    // By using the track's bounding rect in both places, we ensure consistent coordinate calculation.
     const mediaItemElement = event.currentTarget as HTMLElement;
-    const rect = mediaItemElement.getBoundingClientRect();
-    // getBoundingClientRect() returns viewport-relative coordinates,
-    // and coords.clientX is also viewport-relative
-    const clickX = coords.clientX - rect.left;
+    const trackElement = mediaItemElement.closest('.track') as HTMLElement;
+    const trackRect = trackElement.getBoundingClientRect();
+    // Calculate click position relative to the track's left edge (same reference as onTrackPointerMove)
+    const clickX = coords.clientX - trackRect.left;
     // Convert pixel offset to time offset
     this.dragOffsetTime = clickX / this.pixelsPerMillisecond();
 
