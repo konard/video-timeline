@@ -192,14 +192,18 @@ export class TimelineComponent {
     this.mouseDownPosition = { x: coords.clientX, y: coords.clientY };
 
     // Calculate the offset from the item's start position to where the user clicked/touched
-    const trackElement = target.closest('.track') as HTMLElement;
-    if (trackElement) {
-      const rect = trackElement.getBoundingClientRect();
-      // Fix for issue #83: getBoundingClientRect() returns viewport-relative coordinates,
-      // and coords.clientX is also viewport-relative, so we don't need to add scrollLeft
+    // Fix for issue #100: Use the media item element's position directly instead of
+    // finding the track element. This is more accurate for touch events where the item
+    // itself is the target, and prevents the placeholder from jumping forward on mobile.
+    const mediaItemElement = target.closest('.media-item') as HTMLElement;
+    if (mediaItemElement) {
+      const rect = mediaItemElement.getBoundingClientRect();
+      // getBoundingClientRect() returns viewport-relative coordinates,
+      // and coords.clientX is also viewport-relative
       const clickX = coords.clientX - rect.left;
-      const clickTime = clickX / this.pixelsPerMillisecond();
-      this.dragOffsetTime = clickTime - item.startTime;
+      // Convert pixel offset to time offset
+      const pixelOffset = clickX;
+      this.dragOffsetTime = pixelOffset / this.pixelsPerMillisecond();
     } else {
       this.dragOffsetTime = 0;
     }
