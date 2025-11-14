@@ -192,21 +192,18 @@ export class TimelineComponent {
     this.mouseDownPosition = { x: coords.clientX, y: coords.clientY };
 
     // Calculate the offset from the item's start position to where the user clicked/touched
-    // Fix for issue #100: Use the media item element's position directly instead of
-    // finding the track element. This is more accurate for touch events where the item
-    // itself is the target, and prevents the placeholder from jumping forward on mobile.
-    const mediaItemElement = target.closest('.media-item') as HTMLElement;
-    if (mediaItemElement) {
-      const rect = mediaItemElement.getBoundingClientRect();
-      // getBoundingClientRect() returns viewport-relative coordinates,
-      // and coords.clientX is also viewport-relative
-      const clickX = coords.clientX - rect.left;
-      // Convert pixel offset to time offset
-      const pixelOffset = clickX;
-      this.dragOffsetTime = pixelOffset / this.pixelsPerMillisecond();
-    } else {
-      this.dragOffsetTime = 0;
-    }
+    // Fix for issue #100: Use event.currentTarget to get the media item element directly.
+    // event.currentTarget is the element with the event handler (.media-item), while
+    // event.target might be a child element (icon, text, etc.). Using currentTarget
+    // ensures we always get the correct bounding rect, which is critical for accurate
+    // touch drag offset calculation on mobile devices.
+    const mediaItemElement = event.currentTarget as HTMLElement;
+    const rect = mediaItemElement.getBoundingClientRect();
+    // getBoundingClientRect() returns viewport-relative coordinates,
+    // and coords.clientX is also viewport-relative
+    const clickX = coords.clientX - rect.left;
+    // Convert pixel offset to time offset
+    this.dragOffsetTime = clickX / this.pixelsPerMillisecond();
 
     this.draggedItem = item;
     this.draggedItemOriginalTrackId = track.id;
